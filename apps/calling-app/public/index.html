@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>labsOBO · who may invoke Agent A1</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+:root{--bg:#0B1526;--card:#132238;--raised:#1B2E4A;--code:#060D18;--line:#2E4260;--txt:#E6EDF7;--muted:#93A4BD;
+  --human:#C4B5FD;--app:#F5A623;--entra:#60A5FA;--agent:#2DD4BF;--red:#F87171;--green:#4ADE80;--admin:#FB923C;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--txt);font-family:var(--sans);font-size:14px;line-height:1.45}
+a{color:var(--agent)}
+header{padding:16px 24px;border-bottom:1px solid var(--line);display:flex;gap:24px;align-items:center;flex-wrap:wrap}
+header h1{font-size:18px;margin:0;font-weight:700;letter-spacing:-.01em}
+header h1 small{color:var(--muted);font-weight:400;margin-left:10px;font-size:13px}
+.dir{display:flex;gap:10px;flex-wrap:wrap;margin-left:auto}
+.pill{border:1px solid var(--line);border-radius:999px;padding:4px 12px;font-size:12.5px;background:var(--card);display:inline-flex;gap:8px;align-items:center}
+.pill b{font-family:var(--mono);font-weight:600}
+.ok{color:var(--green)} .bad{color:var(--red)} .info{color:var(--entra)} .warn{color:var(--app)}
+main{display:grid;grid-template-columns:400px 1fr;gap:0;min-height:calc(100vh - 62px)}
+aside{border-right:1px solid var(--line);padding:18px;display:flex;flex-direction:column;gap:18px;overflow:auto;max-height:calc(100vh - 62px);position:sticky;top:0}
+section.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+section.card h2{font-size:11.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin:0 0 10px;font-weight:600}
+.btns{display:flex;flex-wrap:wrap;gap:8px}
+button{background:var(--raised);border:1px solid var(--line);color:var(--txt);font:inherit;font-size:13px;padding:7px 11px;border-radius:8px;cursor:pointer}
+button:hover{border-color:var(--muted)} button:disabled{opacity:.4;cursor:not-allowed}
+button.h{border-color:var(--human)} button.a{border-color:var(--app)} button.g{border-color:var(--agent)} button.r{border-color:var(--red)} button.ad{border-color:var(--admin)}
+label.opt{display:flex;gap:8px;align-items:center;font-size:12.5px;color:var(--muted);margin-top:8px}
+.who{font-size:13px} .who b{font-weight:600} .who code{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.matrix{width:100%;border-collapse:collapse;font-size:12.5px}
+.matrix td{padding:5px 6px;border-top:1px solid var(--line);vertical-align:top}
+.matrix td:first-child{font-family:var(--mono);font-weight:600;white-space:nowrap}
+.matrix .st{white-space:nowrap;font-weight:600}
+.matrix small{display:block;color:var(--muted)}
+.runs{display:flex;flex-direction:column;gap:6px;max-height:260px;overflow:auto}
+.run{border:1px solid var(--line);border-radius:8px;padding:7px 10px;cursor:pointer;font-size:12.5px;display:flex;gap:8px;align-items:center}
+.run:hover,.run.sel{border-color:var(--agent);background:var(--raised)}
+.run .n{font-family:var(--mono);color:var(--muted)} .run .t{flex:1}
+.timeline{padding:20px 28px;display:flex;flex-direction:column;gap:16px;max-width:1200px}
+.timeline h2{margin:0;font-size:20px;font-weight:700}
+.timeline h2 small{display:block;color:var(--muted);font-weight:400;font-size:13px;margin-top:4px}
+.hop{background:var(--card);border:1.5px solid var(--line);border-radius:12px;padding:14px 18px;position:relative}
+.hop.allow{border-color:var(--green)} .hop.deny{border-color:var(--red)} .hop.error{border-color:var(--app)}
+.hop .head{display:flex;gap:12px;align-items:flex-start}
+.hop .num{flex:none;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-weight:700;color:var(--bg);background:var(--muted)}
+.hop.allow .num{background:var(--green)} .hop.deny .num{background:var(--red)} .hop.error .num{background:var(--app)} .hop.info .num{background:var(--entra)}
+.hop .route{font-family:var(--mono);font-size:12px;color:var(--muted);margin-bottom:3px}
+.hop .route b{color:var(--txt)} .hop .route .arrow{margin:0 6px}
+.hop .title{font-size:15px;font-weight:600}
+.hop .summary{margin:8px 0 0;font-size:13.5px}
+.hop .note{margin:6px 0 0;font-size:12.5px;color:var(--muted)}
+.tags{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.tag{font-size:10.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;border:1px solid var(--line);border-radius:999px;padding:2px 8px;color:var(--muted);white-space:nowrap}
+.tag.ph{color:var(--entra)} .tag.actor-A1{color:var(--agent)} .tag.actor-ADMIN{color:var(--admin)} .tag.actor-BROWSER{color:var(--human)} .tag.actor-AZ-CLI{color:var(--app)}
+details{margin-top:10px;border-top:1px dashed var(--line);padding-top:8px}
+details summary{cursor:pointer;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+details summary:hover{color:var(--txt)}
+pre{background:var(--code);border:1px solid var(--line);border-radius:6px;padding:10px 12px;margin:8px 0 0;overflow-x:auto;font-family:var(--mono);font-size:12px;line-height:1.5;white-space:pre-wrap;word-break:break-word}
+.kv{display:grid;grid-template-columns:max-content 1fr;gap:3px 14px;font-family:var(--mono);font-size:12px;margin-top:8px}
+.kv dt{color:var(--muted)} .kv dd{margin:0;overflow-wrap:anywhere}
+.status{display:inline-block;font-family:var(--mono);font-weight:600;margin-right:8px}
+table.claims{border-collapse:collapse;width:100%;margin-top:8px;font-size:12.5px}
+table.claims th,table.claims td{border:1px solid var(--line);padding:6px 9px;text-align:left;vertical-align:top}
+table.claims th{background:var(--raised);color:var(--muted);font-weight:600;font-size:11.5px}
+table.claims td.c{font-family:var(--mono);font-weight:600}
+table.claims td.v{font-family:var(--mono);overflow-wrap:anywhere}
+table.claims td.v small{display:block;color:var(--muted);font-family:var(--sans)}
+.tokname{font-family:var(--mono);font-weight:600;color:var(--app);margin-top:10px;display:block}
+.copy{float:right;font-size:11px;padding:2px 8px}
+.empty{color:var(--muted);padding:40px;text-align:center}
+.toast{position:fixed;bottom:18px;right:18px;background:var(--raised);border:1px solid var(--line);border-radius:10px;padding:10px 14px;font-size:13px;display:none;max-width:420px}
+@media (max-width:1000px){main{grid-template-columns:1fr}aside{position:static;max-height:none;border-right:0;border-bottom:1px solid var(--line)}}
+</style>
+</head>
+<body>
+<header>
+  <h1>labsOBO <small>Entra app-role assignment → who may invoke Agent A1 · every hop, every call, every response</small></h1>
+  <div class="dir" id="dir"></div>
+</header>
+<main>
+<aside>
+  <section class="card">
+    <h2>Signed-in session</h2>
+    <div class="who" id="who">nobody</div>
+    <div class="btns" style="margin-top:8px"><button onclick="location.href='/logout'">Sign out of the app</button></div>
+  </section>
+  <section class="card">
+    <h2>Run — sign in and ask for a BP-A1 token</h2>
+    <div class="btns">
+      <button class="h" onclick="login('alex','app')">Sign in as ALEX via APP</button>
+      <button class="h" onclick="login('sam','app')">Sign in as SAM via APP</button>
+      <button class="a" onclick="login('alex','direct')">ALEX via DIRECT client (Phase 15)</button>
+      <button class="a" onclick="login('sam','direct')">SAM via DIRECT client</button>
+      <button onclick="azcli('named')">Pre-flight: operator's Azure CLI token</button>
+    </div>
+    <label class="opt"><input type="checkbox" id="single" checked> request the agent scope in /authorize itself (the plan's flow: the code redemption returns the BP-A1 token directly). Untick for the two-step variant: OIDC sign-in first, then the BP-A1 token via refresh_token.</label>
+    <label class="opt"><input type="checkbox" id="forcelogin"> force fresh credentials (prompt=login)</label>
+  </section>
+  <section class="card">
+    <h2>Then — with the current session</h2>
+    <div class="btns">
+      <button class="g" id="btnTok" onclick="act('/api/session/token',{scopeForm:'default'})">Request a brand-new BP-A1 token</button>
+      <button class="g" id="btnEcho" onclick="act('/api/session/invoke',{target:'local',mode:'echo'})">Invoke local A1 (echo)</button>
+      <button class="g" id="btnObo" onclick="act('/api/session/invoke',{target:'local',mode:'obo'})">Invoke local A1 → OBO → Graph /me (Phase 16)</button>
+      <button class="g" id="btnAc" onclick="act('/api/session/invoke',{target:'agentcore',mode:'echo'})">Invoke Bedrock AgentCore (Phase 12)</button>
+      <button class="r" id="btnBad" onclick="act('/api/session/invoke',{target:'local',mode:'echo',tokenKind:'graph'})">Send a WRONG-audience token to A1 (T06)</button>
+      <button class="r" id="btnBadAc" onclick="act('/api/session/invoke',{target:'agentcore',mode:'echo',tokenKind:'graph'})">Wrong-audience token to AgentCore</button>
+    </div>
+  </section>
+  <section class="card">
+    <h2>Directory — admin via the operator's az session</h2>
+    <div class="btns">
+      <button class="ad" onclick="act('/api/directory/refresh',{})">Verify directory (Phase 6)</button>
+      <button class="ad" onclick="act('/api/directory/assign',{user:'alex',assign:false})">Remove ALEX's role (Phase 13)</button>
+      <button class="ad" onclick="act('/api/directory/assign',{user:'alex',assign:true})">Re-assign ALEX</button>
+      <button class="ad" onclick="act('/api/directory/assign',{user:'sam',assign:true})">Assign SAM (Phase 14)</button>
+      <button class="ad" onclick="act('/api/directory/assign',{user:'sam',assign:false})">Un-assign SAM</button>
+      <button class="ad" onclick="act('/api/directory/consent',{grant:false})">REVOKE admin consent APP→BP-A1 (simulate first-run consent)</button>
+      <button class="ad" onclick="act('/api/directory/consent',{grant:true})">Restore admin consent</button>
+      <button class="a" onclick="login('alex','app','control')">ALEX via APP → CONTROL api (ordinary API, not assigned)</button>
+      <button class="ad" onclick="act('/api/directory/assignment-required',{value:false})">assignmentRequired = false</button>
+      <button class="ad" onclick="act('/api/directory/assignment-required',{value:true})">assignmentRequired = true</button>
+    </div>
+    <h2 style="margin-top:14px">Local A1 policy (mirror of the AgentCore authorizer)</h2>
+    <div id="a1pol" class="who"></div>
+    <div class="btns" style="margin-top:6px">
+      <button onclick="a1policy('app')">azp: APP only</button>
+      <button onclick="a1policy('app+direct')">azp: APP + DIRECT</button>
+      <button onclick="a1policy('app+direct+azcli')">azp: APP + DIRECT + Azure CLI</button>
+    </div>
+  </section>
+  <section class="card">
+    <h2>Test matrix (latest evidence)</h2>
+    <table class="matrix" id="matrix"></table>
+  </section>
+  <section class="card">
+    <h2>Runs</h2>
+    <div class="runs" id="runs"></div>
+    <div class="btns" style="margin-top:8px"><label class="opt" style="margin:0"><input type="checkbox" id="reveal" onchange="loadRun()"> reveal tokens &amp; codes</label><button onclick="clearRuns()" style="margin-left:auto">clear</button></div>
+  </section>
+</aside>
+<div class="timeline" id="timeline"><div class="empty">Pick a run on the left, or sign in.</div></div>
+</main>
+<div class="toast" id="toast"></div>
+<script>
+const $ = (s) => document.querySelector(s);
+let STATE = null, RUN = null, selected = new URLSearchParams(location.search).get('run');
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const lab = (v) => STATE?.lab?.labels?.[v];
+const named = (v) => lab(v) ? `${esc(v)} <small>= ${esc(lab(v))}</small>` : esc(v);
+function toast(m){const t=$('#toast');t.textContent=m;t.style.display='block';setTimeout(()=>t.style.display='none',3500);}
+
+async function refresh(){
+  STATE = await (await fetch('/api/state')).json();
+  const d = STATE.directory, u = STATE.lab.users;
+  const f = (b) => b===null||b===undefined ? '<span class="warn">?</span>' : b ? '<span class="ok">✔</span>' : '<span class="bad">✘</span>';
+  $('#dir').innerHTML = `
+    <span class="pill">BP-A1 assignment required ${f(d.assignmentRequired)}</span>
+    <span class="pill">ALEX <b>${esc(u.alex.displayName)}</b> → ${esc(STATE.lab.bp.roleValue)} → BP-A1 ${f(d.alex)}</span>
+    <span class="pill">SAM <b>${esc(u.sam.displayName)}</b> → BP-A1 ${f(d.sam)}</span>
+    <span class="pill">local A1 ${f(STATE.a1Local.up)}</span>
+    <span class="pill">AgentCore ${f(!!STATE.agentcore.runtimeArn)}</span>`;
+  const s = STATE.session;
+  $('#who').innerHTML = s ? `<b>${esc(s.user.name)}</b> &lt;${esc(s.user.upn)}&gt;<br><code>oid ${esc(s.user.oid)}</code> = ${esc(s.userKey.toUpperCase())}<br>client: <b>${s.clientKey==='app'?'APP (labsOBO-calling-app)':s.clientKey==='direct'?'DIRECT (labsOBO-direct-client)':'Azure CLI'}</b><br>BP-A1 token: ${s.hasBpToken?`<span class="ok">held</span> roles=${esc(JSON.stringify(s.bpTokenClaims?.roles??null))}`:'<span class="bad">none</span>'} · refresh token: ${s.hasRefreshToken?'<span class="ok">held</span>':'<span class="muted">none</span>'}` : '<span class="bad">nobody signed in</span>';
+  for (const id of ['btnEcho','btnObo','btnAc','btnBad','btnBadAc','btnTok']) $('#'+id).disabled = !s;
+  $('#btnEcho').disabled = $('#btnObo').disabled = $('#btnAc').disabled = !(s && s.hasBpToken);
+  $('#btnBad').disabled = $('#btnBadAc').disabled = !(s && s.hasGraphToken);
+  const pol = STATE.a1Local.policy;
+  $('#a1pol').innerHTML = pol ? `aud = ${esc(lab(pol.audience)||pol.audience)}<br>azp ∈ [${pol.allowedAzp.map(a=>esc(lab(a)||a)).join(', ')}]<br>roles ∋ ${esc(pol.requiredRole)} · scp ∋ ${esc(pol.requiredScope)}${pol.enforceScope?'':' (off)'}` : '<span class="bad">local A1 not running — node agents/agent1-local/server.mjs</span>';
+  $('#matrix').innerHTML = STATE.tests.map(t => { const e = t.evidence; const st = !e ? '<span class="warn">not yet</span>' : e.result==='pass' ? '<span class="ok">PASS</span>' : e.result==='allowed-by-policy' ? '<span class="info">ALLOWED</span>' : `<span class="bad">${esc(e.result.toUpperCase())}</span>`;
+    return `<tr><td>${t.id}</td><td>${esc(t.title)}<small>${esc(t.expected)}</small>${e?`<small>${esc(e.detail)} · <a href="#" onclick="sel('${e.runId}');return false">run ${e.runId.slice(0,3)}</a></small>`:''}</td><td class="st">${st}</td></tr>`; }).join('');
+  $('#runs').innerHTML = STATE.runs.map(r => `<div class="run ${r.id===selected?'sel':''}" onclick="sel('${r.id}')"><span class="n">${r.id.slice(0,3)}</span><span class="t">${esc(r.title)}</span><span class="${r.status==='denied'?'bad':r.status==='done'?'ok':'warn'}">${esc(r.status)}</span></div>`).join('') || '<div class="empty" style="padding:10px">no runs yet</div>';
+  if (selected) loadRun();
+}
+function sel(id){ selected = id; history.replaceState(null,'',`/?run=${id}`); refresh(); }
+async function loadRun(){
+  if (!selected) return;
+  const r = await fetch(`/api/runs/${selected}?reveal=${$('#reveal').checked?1:0}`); if (!r.ok) return;
+  RUN = await r.json(); renderRun();
+}
+function fmt(v){ return typeof v === 'string' ? v : JSON.stringify(v, null, 2); }
+function claimsTable(t){
+  if (!t.claims) return `<pre>${esc(t.error||'')}</pre>`;
+  const key = ['oid','azp','aud','scp','roles','idtyp'];
+  const rows = t.checks.map(c => `<tr><td class="c">${c.claim}</td><td class="v">${named(Array.isArray(c.value)?JSON.stringify(c.value):c.value)}<small>${esc(c.meaning)}</small></td><td>${c.expect?`<code>${esc(lab(c.expect)||c.expect)}</code>`:'<span class="muted">—</span>'}</td><td class="st">${c.ok===null?'':c.ok?'<span class="ok">✔</span>':'<span class="bad">✘</span>'}</td></tr>`).join('');
+  const rest = Object.entries(t.claims).filter(([k]) => !key.includes(k)).map(([k,v]) => `<dt>${esc(k)}</dt><dd>${named(typeof v==='object'?JSON.stringify(v):v)}</dd>`).join('');
+  return `<span class="tokname">${esc(t.name)}</span><table class="claims"><tr><th>claim</th><th>value · meaning</th><th>expected</th><th></th></tr>${rows}</table><details><summary>all claims (${Object.keys(t.claims).length}) + header</summary><dl class="kv">${rest}<dt>header</dt><dd>${esc(JSON.stringify(t.header))}</dd></dl>${t.raw?`<pre>${esc(t.raw)}</pre>`:''}</details>`;
+}
+function renderRun(){
+  const r = RUN; const tl = $('#timeline');
+  const ev = r.evidence.length ? `<div class="btns" style="margin-top:6px">${r.evidence.map(e=>`<span class="tag ${e.result==='pass'?'ok':'bad'}">${e.test} ${e.result}</span>`).join('')}</div>` : '';
+  tl.innerHTML = `<h2>${esc(r.title)}<small>run ${r.id} · ${esc(r.startedAt)} · ${r.hops.length} hops · directory at start: assignmentRequired=${r.directoryAtStart?.assignmentRequired} alex=${r.directoryAtStart?.alexAssigned} sam=${r.directoryAtStart?.samAssigned}${r.session?` · session: ${esc(r.session.user?.name)} via ${esc(r.session.clientKey)}`:''}</small>${ev}</h2>` +
+    r.hops.map(h => {
+      const req = h.request ? `<details open><summary>request</summary><dl class="kv"><dt>${esc(h.request.method)}</dt><dd>${esc(h.request.url)}</dd>${Object.entries(h.request.headers||{}).map(([k,v])=>`<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}</dl>${h.request.body?`<pre>${esc(fmt(h.request.body))}</pre>`:''}${h.request.curl?`<details open><summary>curl equivalent</summary><pre>${esc(h.request.curl)}</pre></details>`:''}</details>` : '';
+      const res = h.response ? `<details open><summary>response</summary><div style="margin-top:6px"><span class="status ${h.response.status<300?'ok':h.response.status<500?'bad':'warn'}">HTTP ${h.response.status}${h.response.statusText?' '+esc(h.response.statusText):''}</span>${h.response.durationMs!==undefined?`<span class="muted">${h.response.durationMs} ms</span>`:''}</div>${h.response.headers&&Object.keys(h.response.headers).length?`<dl class="kv">${Object.entries(h.response.headers).map(([k,v])=>`<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}</dl>`:''}<pre>${esc(fmt(h.response.body))}</pre></details>` : '';
+      const toks = (h.tokens||[]).length ? `<details open><summary>token${h.tokens.length>1?'s':''} decoded &amp; checked</summary>${h.tokens.map(claimsTable).join('')}</details>` : '';
+      const checks = h.checks ? `<details open><summary>authorizer checks</summary><table class="claims">${h.checks.map(c=>`<tr><td>${esc(c.check)}</td><td class="v">${esc(c.detail)}</td><td class="st">${c.ok?'<span class="ok">✔</span>':'<span class="bad">✘</span>'}</td></tr>`).join('')}</table></details>` : '';
+      return `<div class="hop ${h.verdict||'info'}"><div class="head"><div class="num">${h.n}</div><div style="flex:1"><div class="route"><b>${esc(h.from)}</b><span class="arrow">→</span><b>${esc(h.to)}</b>${h.spliced?' <span class="tag actor-A1">reported by A1</span>':''}</div><div class="title">${esc(h.title)}</div></div><div class="tags">${h.phase?`<span class="tag ph">${esc(h.phase)}</span>`:''}<span class="tag actor-${esc(h.actor)}">${esc(h.actor)}</span><span class="tag">${esc(h.kind)}</span></div></div>${h.summary?`<p class="summary">${esc(h.summary)}</p>`:''}${h.note?`<p class="note">${esc(h.note)}</p>`:''}${checks}${toks}${req}${res}</div>`;
+    }).join('');
+}
+function login(as, client, resource){ const p = new URLSearchParams({as, client, scopeMode: (resource==='control' || $('#single').checked)?'single':'twostep', prompt: $('#forcelogin').checked?'login':'select_account'}); if (resource) p.set('resource', resource); location.href = `/login?${p}`; }
+async function azcli(scopeForm){ const r = await (await fetch('/api/azcli/import',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({scopeForm})})).json(); sel(r.runId); }
+async function act(path, body){ toast('working…'); const r = await fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}); const j = await r.json(); if (j.error) toast(j.error); if (j.runId) sel(j.runId); else refresh(); }
+async function a1policy(which){ const L = STATE.lab; const map = {app:[L.app.clientId], 'app+direct':[L.app.clientId,L.direct.clientId], 'app+direct+azcli':[L.app.clientId,L.direct.clientId,L.azureCliAppId]}; await fetch('/api/a1/policy',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({allowedAzp:map[which]})}); refresh(); }
+async function clearRuns(){ await fetch('/api/runs/clear',{method:'POST'}); selected=null; history.replaceState(null,'','/'); $('#timeline').innerHTML='<div class="empty">cleared</div>'; refresh(); }
+refresh(); setInterval(refresh, 5000);
+</script>
+</body>
+</html>

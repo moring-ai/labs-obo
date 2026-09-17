@@ -1,0 +1,14 @@
+{
+  "name": "labsobo-calling-app",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "labsOBO | the calling application (APP) on :3100 - OAuth client, hop recorder, and the lab UI.",
+  "scripts": {
+    "start": "node apps/calling-app/server.mjs",
+    "agent": "node agents/agent1-local/server.mjs"
+  },
+  "dependencies": {
+    "jose": "^5.9.6"
+  }
+}

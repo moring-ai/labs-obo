@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>T_APP_A1 — code redemption at Entra</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0B1526; --card:#132238; --raised:#1B2E4A; --code:#060D18; --line:#2E4260;
+  --txt:#E6EDF7; --muted:#93A4BD; --dim:#66799A;
+  --human:#C4B5FD; --app:#F5A623; --entra:#60A5FA; --agent:#2DD4BF;
+  --green:#4ADE80; --red:#F87171;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;background:
+    radial-gradient(900px 420px at 12% -8%, rgba(96,165,250,.10), transparent 60%),
+    radial-gradient(760px 380px at 92% 4%, rgba(245,166,35,.08), transparent 62%),
+    var(--bg);
+  color:var(--txt);font-family:var(--sans);font-size:13px;line-height:1.4;
+}
+a{color:var(--entra)}
+.wrap{max-width:1680px;margin:0 auto;padding:11px 18px 10px;display:flex;flex-direction:column;gap:10px;min-height:100%}
+
+/* ---------- masthead ---------- */
+.mast{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:9px}
+.mast h1{margin:0;font-size:15px;font-weight:600;letter-spacing:.2px}
+.mast h1 b{font-family:var(--mono);color:var(--app);font-weight:600}
+.mast .sub{color:var(--muted);font-size:12px}
+.mast .spacer{flex:1}
+.tag{font-family:var(--mono);font-size:11px;padding:2px 8px;border:1px solid var(--line);border-radius:99px;color:var(--muted);white-space:nowrap}
+.tag.ok{color:var(--green);border-color:rgba(74,222,128,.4);background:rgba(74,222,128,.07)}
+.tag.btn{cursor:pointer;background:var(--raised);color:var(--muted);font-family:var(--mono)}
+.tag.btn:hover{color:var(--txt);border-color:var(--dim)}
+.tag.btn[aria-pressed="true"]{color:var(--entra);border-color:rgba(96,165,250,.45);background:rgba(96,165,250,.09)}
+body.fitting{overflow:hidden}
+body.fitting .wrap{transform-origin:top left;will-change:transform}
+
+/* ---------- flow ---------- */
+.flow{background:linear-gradient(180deg,var(--card),rgba(19,34,56,.55));border:1px solid var(--line);border-radius:10px;padding:8px 14px 7px}
+.flow figure{margin:0}
+.flow svg{width:100%;height:auto;display:block}
+.flow figcaption{margin-top:5px;color:var(--muted);font-size:11.5px;border-top:1px dashed var(--line);padding-top:6px}
+.flow figcaption b{color:var(--txt);font-weight:600}
+
+/* ---------- 3-column body ---------- */
+.grid{display:grid;grid-template-columns:minmax(0,1.24fr) minmax(0,.92fr) minmax(0,1.34fr);gap:10px;align-items:start}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;display:flex;flex-direction:column;min-width:0}
+.phead{display:flex;align-items:center;gap:8px;padding:6px 12px;background:var(--raised);border-bottom:1px solid var(--line)}
+.phead .step{width:19px;height:19px;flex:none;border-radius:50%;display:grid;place-items:center;font-family:var(--mono);font-size:11px;font-weight:700;color:var(--bg)}
+.phead h2{margin:0;font-size:12px;font-weight:600;letter-spacing:.25px;text-transform:uppercase}
+.phead .meta{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--muted);white-space:nowrap}
+.pbody{padding:8px 12px;min-width:0}
+.pbody.tight{padding:7px 10px}
+
+pre{margin:0;background:var(--code);border:1px solid var(--line);border-radius:7px;padding:9px 11px;
+    font-family:var(--mono);font-size:11.5px;line-height:1.55;overflow-x:auto;white-space:pre;color:#CBD9EE}
+/* curl: every line fully visible — long ones wrap with a hanging indent instead of scrolling */
+pre.curl{white-space:normal;overflow-x:visible;font-size:11px;line-height:1.5}
+pre.curl .ln{display:block;padding-left:30px;text-indent:-30px;word-break:break-word}
+pre.curl .ln.z{padding-left:0;text-indent:0}
+.k{color:var(--entra)} .s{color:var(--agent)} .v{color:#E8D9B8} .c{color:var(--dim)} .var{color:var(--human)}
+.hl{color:var(--app);font-weight:600}
+
+/* jwt */
+.jwt{font-family:var(--mono);font-size:11px;line-height:1.6;word-break:break-all;background:var(--code);
+     border:1px solid var(--line);border-radius:7px;padding:9px 11px;max-height:150px;overflow:auto}
+.jwt .hdr{color:var(--red)} .jwt .pay{color:var(--human)} .jwt .sig{color:var(--agent)}
+.jwtlegend{display:flex;gap:14px;margin-top:6px;font-family:var(--mono);font-size:10.5px;color:var(--muted);flex-wrap:wrap}
+.jwtlegend i{font-style:normal;display:inline-flex;align-items:center;gap:5px}
+.dot{width:8px;height:8px;border-radius:2px;display:inline-block}
+
+/* claims table */
+table{width:100%;border-collapse:collapse}
+.claims th{text-align:left;font-size:10.5px;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);
+  font-weight:600;padding:5px 8px;border-bottom:1px solid var(--line);background:var(--raised)}
+.claims td{padding:4px 8px;border-bottom:1px solid rgba(46,66,96,.55);vertical-align:top}
+.claims tr:last-child td{border-bottom:none}
+.claims tr.key{background:rgba(96,165,250,.045)}
+.claims td.c{font-family:var(--mono);font-weight:600;color:var(--txt);white-space:nowrap;width:1%}
+.claims td.v{font-family:var(--mono);color:#E8D9B8;overflow-wrap:anywhere;font-size:11.5px}
+.claims td.v em{display:block;font-style:normal;font-family:var(--sans);color:var(--muted);font-size:11px;margin-top:1px}
+.claims td.v em b{color:var(--txt);font-weight:600}
+.claims td.q{font-family:var(--sans);color:var(--muted);font-size:11px}
+.claims td.e{font-family:var(--mono);color:var(--muted);font-size:11px;overflow-wrap:anywhere}
+.claims td.ok{text-align:center;color:var(--green);font-weight:700;width:1%}
+.role{color:var(--agent);font-weight:600}
+
+details{margin-top:7px}
+summary{cursor:pointer;font-size:11px;color:var(--muted);font-family:var(--mono);letter-spacing:.3px;
+        list-style:none;padding:4px 8px;border:1px solid var(--line);border-radius:6px;background:var(--raised)}
+summary::-webkit-details-marker{display:none}
+summary::before{content:"▸ ";color:var(--dim)}
+details[open] summary::before{content:"▾ "}
+summary:hover{color:var(--txt);border-color:var(--dim)}
+.kv{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:2px 12px;font-family:var(--mono);
+    font-size:11px;margin-top:7px;padding:0 2px}
+.kv dt{color:var(--muted)} .kv dd{margin:0;overflow-wrap:anywhere;color:#CBD9EE}
+/* all-claims list: balanced columns so 20 claims stay on one screen */
+.kvcols{columns:2;column-gap:24px;column-rule:1px solid rgba(46,66,96,.5);margin-top:7px;font-family:var(--mono);font-size:11px}
+.kvcols .r{break-inside:avoid;display:grid;grid-template-columns:max-content minmax(0,1fr);gap:0 11px;margin-bottom:2px;line-height:1.42}
+.kvcols .r.op > span:last-child{font-size:9.8px;line-height:1.32;color:var(--dim)}
+.kvcols .r > span:first-child{color:var(--muted)}
+.kvcols .r > span:last-child{overflow-wrap:anywhere;color:#CBD9EE}
+
+.note{margin-top:7px;font-size:11.3px;color:var(--muted);border-left:2px solid var(--app);padding:2px 0 2px 9px}
+.note b{color:var(--txt);font-weight:600}
+.note.blue{border-left-color:var(--entra)}
+.note.green{border-left-color:var(--green)}
+
+footer{color:var(--dim);font-size:11px;font-family:var(--mono);border-top:1px solid var(--line);padding-top:6px;
+       display:flex;gap:16px;flex-wrap:wrap}
+
+@media (max-width:1380px){ .grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr)} .grid .panel.claimspanel{grid-column:1 / -1} }
+@media (max-width:900px){ .grid{grid-template-columns:minmax(0,1fr)} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="mast">
+    <h1>Issuing <b>T_APP_A1</b> — the calling app redeems Alex's code at Entra</h1>
+    <span class="sub">labsOBO · run 049-01a9ad84 · Phase 9 · tenant MoringAI</span>
+    <span class="spacer"></span>
+    <span class="tag ok">✔ RS256 signature verified against tenant JWKS · 2026-09-09T12:13:28Z</span>
+    <span class="tag">HTTP 200 · x-ms-request-id 29a7fcb4-142f-4647-a65d-82a5a67c8800</span>
+    <button id="fit" class="tag btn" type="button" aria-pressed="true">⤢ fit to screen</button>
+  </div>
+
+  <!-- ============ FLOW ============ -->
+  <section class="flow">
+    <figure>
+      <svg viewBox="0 0 1600 150" role="img" aria-label="The calling app posts the authorization code, PKCE verifier and its certificate client assertion to the Entra token endpoint; Entra returns the access token T_APP_A1 whose audience is the agent blueprint BP-A1; the app then sends that token as a bearer token to the agent A1 runtime, which admits the call on the roles claim.">
+        <defs>
+          <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+          </marker>
+          <marker id="arDim" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="#66799A"/>
+          </marker>
+        </defs>
+
+        <!-- APP -->
+        <g>
+          <rect x="24" y="46" width="238" height="64" rx="9" fill="#132238" stroke="#F5A623" stroke-width="1.5"/>
+          <text x="143" y="72" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="14" font-weight="600" fill="#F5A623">APP</text>
+          <text x="143" y="90" text-anchor="middle" font-family="IBM Plex Sans, sans-serif" font-size="11.5" fill="#93A4BD">labsOBO-calling-app · :3100</text>
+          <text x="143" y="127" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="#66799A">confidential · cert assertion</text>
+          <text x="143" y="34" text-anchor="middle" font-family="IBM Plex Sans, sans-serif" font-size="11" fill="#C4B5FD">acting for ALEX (Balaji)</text>
+        </g>
+
+        <!-- request arrow -->
+        <g color="#60A5FA">
+          <line x1="266" y1="63" x2="592" y2="63" stroke="currentColor" stroke-width="1.6" marker-end="url(#ar)"/>
+          <text x="429" y="53" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="11.5" fill="#60A5FA">POST /oauth2/v2.0/token</text>
+          <text x="429" y="80" text-anchor="middle" font-family="IBM Plex Sans, sans-serif" font-size="11" fill="#93A4BD">grant_type=authorization_code + PKCE verifier</text>
+          <text x="429" y="95" text-anchor="middle" font-family="IBM Plex Sans, sans-serif" font-size="11" fill="#93A4BD">client_assertion (RS256 cert JWT) · scope = BP-A1</text>
+        </g>
+
+        <!-- ENTRA -->
+        <g>
+          <rect x="596" y="34" width="268" height="88" rx="9" fill="#132238" stroke="#60A5FA" stroke-width="1.5"/>
+          <text x="730" y="60" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="14" font-weight="600" fill="#60A5FA">ENTRA ID</text>
+          <text x="730" y="78" text-anchor="middle" font-family="IBM Plex Sans, sans-serif" font-size="11.5" fill="#93A4BD">authenticates the human,</text>
+          <text x="730" y="93" text-anchor="middle" font-family="IBM Plex Sans, sans-serif" font-size="11.5" fill="#93A4BD">authenticates the client,</text>
+          <text x="730" y="110" text-anchor="middle" font-family="IBM Plex Sans, sans-serif" font-size="11.5" fill="#93A4BD">stamps the <tspan font-family="IBM Plex Mono, monospace" fill="#2DD4BF">roles</tspan> of the assignment</text>
+        </g>
+
+        <!-- token arrow -->
+        <g color="#F5A623">
+          <line x1="868" y1="63" x2="1188" y2="63" stroke="currentColor" stroke-width="1.6" marker-end="url(#ar)"/>
+          <text x="1028" y="53" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="11.5" font-weight="600" fill="#F5A623">200 → T_APP_A1</text>
+          <text x="1028" y="80" text-anchor="middle" font-family="IBM Plex Sans, sans-serif" font-size="11" fill="#93A4BD">access_token · aud = BP-A1 · azp = APP</text>
+          <text x="1028" y="95" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="11" fill="#2DD4BF">roles = [labsOBO.AgentInvoker]</text>
+        </g>
+
+        <!-- AGENT -->
+        <g>
+          <rect x="1192" y="46" width="252" height="64" rx="9" fill="#132238" stroke="#2DD4BF" stroke-width="1.5"/>
+          <text x="1318" y="72" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="14" font-weight="600" fill="#2DD4BF">A1 RUNTIME</text>
+          <text x="1318" y="90" text-anchor="middle" font-family="IBM Plex Sans, sans-serif" font-size="11.5" fill="#93A4BD">JWT authorizer · AgentCore</text>
+          <text x="1318" y="34" text-anchor="middle" font-family="IBM Plex Sans, sans-serif" font-size="11" fill="#93A4BD">audience of the token</text>
+        </g>
+
+        <!-- invoke arrow -->
+        <g color="#66799A">
+          <line x1="1448" y1="78" x2="1560" y2="78" stroke="#66799A" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#arDim)"/>
+          <text x="1500" y="68" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="#66799A">then OBO</text>
+        </g>
+        <text x="1318" y="127" text-anchor="middle" font-family="IBM Plex Sans, sans-serif" font-size="10.5" fill="#66799A">admits on aud + azp + roles</text>
+
+        <!-- baseline note -->
+        <line x1="24" y1="134" x2="1576" y2="134" stroke="#2E4260" stroke-width="1" stroke-dasharray="3 5"/>
+        <text x="24" y="147" font-family="IBM Plex Sans, sans-serif" font-size="11" fill="#66799A">Bearer token, single resource: this token is only good for BP-A1. Graph, AgentCore control plane and the OBO leg each need their own request.</text>
+      </svg>
+      <figcaption><b>One hop, three identities.</b> The code proves the human signed in, the client assertion proves which application is asking, and the app-role assignment on BP-A1 decides whether <span style="font-family:var(--mono);color:var(--agent)">roles</span> appears at all. The runtime never sees Entra — it only sees this token.</figcaption>
+    </figure>
+  </section>
+
+  <!-- ============ 3 COLUMNS ============ -->
+  <div class="grid">
+
+    <!-- 1. REQUEST -->
+    <section class="panel">
+      <div class="phead"><span class="step" style="background:var(--app)">1</span><h2>The request the app sends</h2><span class="meta">form-urlencoded</span></div>
+      <div class="pbody">
+<pre class="curl"><span class="ln z"><span class="c"># APP &rarr; ENTRA &middot; Phase 9 &middot; redeem the one-time code</span></span><span class="ln z">curl -X POST <span class="v">"https://login.microsoftonline.com/a3430156-893d-4661-9dad-dce8308b8c21/oauth2/v2.0/token"</span> \</span><span class="ln">  -H <span class="v">"Content-Type: application/x-www-form-urlencoded"</span> \</span><span class="ln">  --data-urlencode <span class="v">"<span class="k">grant_type</span>=authorization_code"</span> \</span><span class="ln">  --data-urlencode <span class="v">"<span class="k">client_id</span>=05d1bf77-a2e4-4c1c-9ef1-31dff291dd45"</span> \</span><span class="ln">  --data-urlencode <span class="v">"<span class="k">code</span>=<span class="var">${LABSOBO_ALEX_AUTH_CODE}</span>"</span> \</span><span class="ln">  --data-urlencode <span class="v">"<span class="k">redirect_uri</span>=http://localhost:3100/auth/callback"</span> \</span><span class="ln">  --data-urlencode <span class="v">"<span class="k">code_verifier</span>=<span class="var">${LABSOBO_PKCE_VERIFIER}</span>"</span> \</span><span class="ln">  --data-urlencode <span class="v">"<span class="k">scope</span>=openid profile offline_access <span class="s">api://5e5c2e3c-35b8-4817-8dc9-96b09adb6865/labsOBO_access_agent</span>"</span> \</span><span class="ln">  --data-urlencode <span class="v">"<span class="k">client_assertion_type</span>=urn:ietf:params:oauth:client-assertion-type:jwt-bearer"</span> \</span><span class="ln">  --data-urlencode <span class="v">"<span class="k">client_assertion</span>=<span class="var">${LABSOBO_CALLING_APP_ASSERTION}</span>"</span></span></pre>
+
+        <div class="note"><b>Why the token comes back for BP-A1.</b> The resource scope <span style="font-family:var(--mono)">api://5e5c2e3c…/labsOBO_access_agent</span> was already requested at <span style="font-family:var(--mono)">/authorize</span>, so this single redemption returns an access token whose audience is the blueprint, not the app.</div>
+        <div class="note blue"><b>Three proofs in one POST.</b> <span style="font-family:var(--mono)">code</span> proves the human authenticated. <span style="font-family:var(--mono)">code_verifier</span> proves the same client that started the flow is finishing it. <span style="font-family:var(--mono)">client_assertion</span> — an RS256 JWT signed by the app's certificate — proves the client is <span style="font-family:var(--mono)">labsOBO-calling-app</span> and not someone replaying the code.</div>
+
+        <details>
+          <summary>the three placeholders, and the client assertion</summary>
+          <dl class="kv">
+            <dt>${LABSOBO_ALEX_AUTH_CODE}</dt><dd>one-time code from <span style="color:var(--muted)">GET /auth/callback?code=1.ARMBVgFDoz2JYUadrdzoMIuMIXe_0QXkohxMnvEx3_KR3UU…</span> (state <span style="color:var(--muted)">16za6d9L-AHsfMb3IjeHEdOm</span>)</dd>
+            <dt>${LABSOBO_PKCE_VERIFIER}</dt><dd>Bf5rSDrY-DxwICyeFY7jt803DmHl_hFUDQcQ3cKYdZ1_hB63H29MRIe85V0vH9E4 <span style="color:var(--dim)">· challenge sent as S256</span></dd>
+            <dt>${…APP_ASSERTION}</dt><dd>RS256, 807 chars · x5t <span style="color:var(--muted)">5v1FVlHudw_NDz5f-_lBGveqFNA</span> · iss = sub = APP · aud = the token endpoint · jti <span style="color:var(--muted)">b2da45ef-078a-404a-a8dc-42d4c5c5d557</span></dd>
+            <dt>authorize params</dt><dd>response_type=code · response_mode=query · code_challenge_method=S256 · prompt=select_account · login_hint=BalajiNagarajKumar@MoringAI.onmicrosoft.com</dd>
+          </dl>
+        </details>
+      </div>
+    </section>
+
+    <!-- 2. RESPONSE + RAW JWT -->
+    <section class="panel">
+      <div class="phead"><span class="step" style="background:var(--entra)">2</span><h2>What Entra returns</h2><span class="meta">200 · 4648 s</span></div>
+      <div class="pbody">
+<pre>{
+  <span class="k">"token_type"</span>: <span class="v">"Bearer"</span>,
+  <span class="k">"scope"</span>: <span class="s">"api://5e5c2e3c-35b8-4817-8dc9-96b09adb6865/labsOBO_access_agent"</span>,
+  <span class="k">"expires_in"</span>: <span class="v">4648</span>,
+  <span class="k">"access_token"</span>: <span class="hl">"eyJ0eXAiOiJKV1Qi…"</span>  <span class="c">← T_APP_A1, below</span>,
+  <span class="k">"refresh_token"</span>: <span class="v">"1.ARMBVgFDoz2JYUadr…"</span>,
+  <span class="k">"id_token"</span>: <span class="v">"eyJ0eXAiOiJKV1Qi…"</span>   <span class="c">← aud = APP, who signed in</span>
+}</pre>
+
+        <div style="margin-top:10px;font-family:var(--mono);font-size:11px;color:var(--app);font-weight:600">T_APP_A1 · raw JWT · 1680 chars</div>
+        <div class="jwt" id="rawjwt"><span class="hdr">eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImtpZCI6IlQ1aDQwcTdHMHg0OXFuNDFsTTkta0tqcEQ5OCJ9</span><span style="color:var(--dim)">.</span><span class="pay">eyJhdWQiOiI1ZTVjMmUzYy0zNWI4LTQ4MTctOGRjOS05NmIwOWFkYjY4NjUiLCJpc3MiOiJodHRwczovL2xvZ2luLm1pY3Jvc29mdG9ubGluZS5jb20vYTM0MzAxNTYtODkzZC00NjYxLTlkYWQtZGNlODMwOGI4YzIxL3YyLjAiLCJpYXQiOjE3ODg5NTQ4NDMsIm5iZiI6MTc4ODk1NDg0MywiZXhwIjoxNzg4OTU5NzkyLCJhaW8iOiJBWFFBaS84ZUFBQUFsZUgyaytjdktBRzJNOS92TWdCb25XYWNveWRkOHltSjRxSFEyb3pOb2V6TlRCNGN6dWNmZkMveHhRQVVPWkpPVmFrQ1pZNlVwejh2aWV4M3RLaWFFWnZPNU1ielpSempPYmdIK1g0T1E3ZDMycUp6R1gvbTRvZU1xN3MrNk1aUEhlMk9SNWtTd0hMMTdwcTRsOTBOeWc9PSIsImF6cCI6IjA1ZDFiZjc3LWEyZTQtNGMxYy05ZWYxLTMxZGZmMjkxZGQ0NSIsImF6cGFjciI6IjIiLCJuYW1lIjoiQmFsYWppIE5hZ2FyYWogS3VtYXIiLCJvaWQiOiIyZmFhMjVjOS01OTBkLTQ3MjMtYWViYi1mMzlmODE5Y2U0ODkiLCJwcmVmZXJyZWRfdXNlcm5hbWUiOiJCYWxhamlOYWdhcmFqS3VtYXJATW9yaW5nQUkub25taWNyb3NvZnQuY29tIiwicmgiOiIxLkFSTUJWZ0ZEb3oySllVYWRyZHpvTUl1TUlUd3VYRjY0TlJkSWpjbVdzSnJiYUdVQUFMMFRBUS4iLCJyb2xlcyI6WyJsYWJzT0JPLkFnZW50SW52b2tlciJdLCJzY3AiOiJsYWJzT0JPX2FjY2Vzc19hZ2VudCIsInNpZCI6IjAwN2NkOTBhLWFjMTMtOTAzNy05YzIyLTBlOTViNTUwNDY4NyIsInN1YiI6ImtfN1B3U0N6QmxWZkpLWW1CSVdKT1RFRTJTd2ZWem9FSmlPLWlxVWNqZE0iLCJ0aWQiOiJhMzQzMDE1Ni04OTNkLTQ2NjEtOWRhZC1kY2U4MzA4YjhjMjEiLCJ1dGkiOiJ0UHluS1M4VVIwYW1YWUtscG55SUFBIiwidmVyIjoiMi4wIiwieG1zX2Z0ZCI6IjBya3hoWWxTV19EOEF4cDJUYlJ6Y0RjcXhUY1B0SzhjekdwT2U0eHh5ZmNCYzNkbFpHVnVZeTFrYzIxeiJ9</span><span style="color:var(--dim)">.</span><span class="sig">VxFOVlAr_fO1qSNjA8KxBKOFUuPQ7rO9q1WqQWTFmYMKNSn-12xptNS3wGSzb3IPhx8jBuD4a5B3HAYmbd0RCLLg2vZ-bpoPuH-uXdmiA1MifkcESxoE6Jdhs4iw6HtmgD41dRAd561Tn2wJRqrTmV17fJXMdw05YPUcS2F6STlX29RETq-TPwfL9X9wcoEL_ixSxrEw2s2tw_1fYtZNpK82uY90rgxj3XufyWNHBXzpomllTyEYiV4ZpMSUo--F71OLFn0IG4X48V7xjIKWJ_3ZuVPvWFauydYynlhXuI-Uku7cEyAcSuNFR5I3He_tPagbHzpGGr1MJxraAizKXQ</span></div>
+        <div class="jwtlegend">
+          <i><span class="dot" style="background:var(--red)"></span>header · 84</i>
+          <i><span class="dot" style="background:var(--human)"></span>payload · 1252</i>
+          <i><span class="dot" style="background:var(--agent)"></span>signature · 342</i>
+        </div>
+
+        <div class="note green"><b>Verified, not assumed.</b> <span style="font-family:var(--mono)">jwtVerify</span> against <span style="font-family:var(--mono)">/discovery/v2.0/keys</span> for kid <span style="font-family:var(--mono)">T5h40q7G0x49qn41lM9-kKjpD98</span> passed on 2026-09-09 at 12:13:28Z, with issuer and audience pinned. The signature block is what makes every claim below trustworthy.</div>
+      </div>
+    </section>
+
+    <!-- 3. CLAIMS -->
+    <section class="panel claimspanel">
+      <div class="phead"><span class="step" style="background:var(--agent)">3</span><h2>T_APP_A1 dissected</h2><span class="meta">5 claims decide · 20 total</span></div>
+      <div class="pbody tight">
+        <table class="claims">
+          <thead><tr><th>claim</th><th>value · meaning</th><th>expected</th><th></th></tr></thead>
+          <tbody>
+            <tr class="key">
+              <td class="c">oid</td>
+              <td class="v">2faa25c9-590d-4723-aebb-f39f819ce489
+                <em>= <b>ALEX (Balaji Nagaraj Kumar)</b></em></td>
+              <td class="q">Which human?<br><span style="color:var(--dim)">the user object id</span></td>
+              <td class="ok">✔</td>
+            </tr>
+            <tr class="key">
+              <td class="c">azp</td>
+              <td class="v">05d1bf77-a2e4-4c1c-9ef1-31dff291dd45
+                <em>= <b>APP (labsOBO-calling-app)</b></em></td>
+              <td class="q">Which OAuth client asked for this token?</td>
+              <td class="ok">✔</td>
+            </tr>
+            <tr class="key">
+              <td class="c">aud</td>
+              <td class="v">5e5c2e3c-35b8-4817-8dc9-96b09adb6865
+                <em>= <b>BP-A1 (labsOBO-agent1-blueprint)</b></em></td>
+              <td class="q">Which agent API boundary is it for?</td>
+              <td class="ok">✔</td>
+            </tr>
+            <tr class="key">
+              <td class="c">scp</td>
+              <td class="v">labsOBO_access_agent</td>
+              <td class="q">What delegated operation was consented?</td>
+              <td class="ok">✔</td>
+            </tr>
+            <tr class="key">
+              <td class="c">roles</td>
+              <td class="v"><span class="role">["labsOBO.AgentInvoker"]</span>
+                <em>the app-role assignment on BP-A1</em></td>
+              <td class="q">Is this human actually entitled to invoke this agent?</td>
+              <td class="ok">✔</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="note"><b>The one that authorizes is <span style="font-family:var(--mono)">roles</span>.</b> <span style="font-family:var(--mono)">scp</span> is a flow artifact of the interactive sign-in — it says a delegated permission was consented, not that this person may invoke A1. In this tenant an unassigned user still gets a token; it simply arrives with <span style="font-family:var(--mono)">roles</span> absent, and the runtime's <span style="font-family:var(--mono)">roles CONTAINS labsOBO.AgentInvoker</span> check is what denies the call.</div>
+
+        <details open>
+          <summary>all 20 claims + header</summary>
+          <div class="kvcols">
+            <div class="r"><span>iss</span><span>https://login.microsoftonline.com/a3430156-893d-4661-9dad-dce8308b8c21/v2.0</span></div>
+            <div class="r"><span>iat</span><span>1788954843 <span style="color:var(--dim)">&middot; 2026-09-09T11:54:03Z</span></span></div>
+            <div class="r"><span>nbf</span><span>1788954843</span></div>
+            <div class="r"><span>exp</span><span>1788959792 <span style="color:var(--dim)">&middot; 13:16:32Z &middot; exp&minus;iat = 4949 s, while the response advertised expires_in 4648 s</span></span></div>
+            <div class="r"><span>ver</span><span>2.0</span></div>
+            <div class="r"><span>tid</span><span>a3430156-893d-4661-9dad-dce8308b8c21 <span style="color:var(--dim)">&middot; MoringAI</span></span></div>
+            <div class="r"><span>sid</span><span>007cd90a-ac13-9037-9c22-0e95b5504687</span></div>
+            <div class="r"><span>sub</span><span>k_7PwSCzBlVfJKYmBIWJOTEE2SwfVzoEJiO-iqUcjdM <span style="color:var(--dim)">&middot; pairwise, per audience</span></span></div>
+            <div class="r"><span>uti</span><span>tPynKS8UR0amXYKlpnyIAA</span></div>
+            <div class="r"><span>azpacr</span><span>2 <span style="color:var(--dim)">&middot; client authenticated with a certificate</span></span></div>
+            <div class="r"><span>name</span><span>Balaji Nagaraj Kumar</span></div>
+            <div class="r"><span>preferred_username</span><span>BalajiNagarajKumar@MoringAI.onmicrosoft.com</span></div>
+            <div class="r"><span>header</span><span>{"typ":"JWT","alg":"RS256","kid":"T5h40q7G0x49qn41lM9-kKjpD98"}</span></div>
+            <div class="r op"><span>rh</span><span style="color:var(--dim)">1.ARMBVgFDoz2JYUadrdzoMIuMITwuXF64NRdIjcmWsJrbaGUAAL0TAQ.</span></div>
+            <div class="r op"><span>xms_ftd</span><span style="color:var(--dim)">0rkxhYlSW_D8Axp2TbRzcDcqxTcPtK8czGpOe4xxyfcBc3dlZGVuYy1kc21z</span></div>
+            <div class="r op"><span>aio</span><span style="color:var(--dim)">AXQAi/8eAAAAleH2k+cvKAG2M9/vMgBonWacoydd8ymJ4qHQ2ozNoezNTB4czucffC/xxQAUOZJOVakCZY6Upz8viex3tKiaEZvO5MbzZRzjObgH+X4OQ7d32qJzGX/m4oeMq7s+6MZPHe2OR5kSwHL17pq4l90Nyg==</span></div>
+          </div>
+        </details>
+
+        <div class="note blue" style="margin-top:10px"><b>What the runtime checks next.</b> The AgentCore JWT authorizer on <span style="font-family:var(--mono)">labsOBO_agent1_runtime</span> is configured with <span style="font-family:var(--mono)">allowedAudience</span> = BP-A1 plus custom claims on <span style="font-family:var(--mono)">azp</span> and <span style="font-family:var(--mono)">roles</span>. Wrong audience → 401. Wrong client → 401. Role missing → 401. All three measured in this lab on 2026-09-09.</div>
+      </div>
+    </section>
+
+  </div>
+
+  <footer>
+    <span>source: .lab/traces/049-01a9ad84.json · hop 3 of 5</span>
+    <span>token: .lab/tokens/T_APP_A1.alex.app.json · saved 2026-09-09T11:59:03Z</span>
+    <span>ests server 2.1.25204.3 · SEC ProdSlices</span>
+    <span style="color:var(--red)">contains a real, expiring bearer token — internal only</span>
+  </footer>
+
+</div>
+<script>
+(function(){
+  var wrap=document.querySelector('.wrap'), btn=document.getElementById('fit'), on=true, raf=0;
+  if(!wrap||!btn) return;
+  function reset(){ document.body.classList.remove('fitting'); wrap.style.transform=''; wrap.style.width=''; wrap.style.height=''; }
+  function fit(){
+    reset();
+    if(!on) return;
+    var vw=document.documentElement.clientWidth||window.innerWidth||0;
+    var vh=window.innerHeight||document.documentElement.clientHeight||0;
+    if(vw<360||vh<320){ retry(); return; }           // not laid out yet — try again shortly
+    var natural=wrap.scrollHeight;
+    if(natural<=vh-1) return;                        // already one screen at 1:1
+    document.body.classList.add('fitting');
+    var k=1, w=vw;
+    for(var i=0;i<3;i++){
+      wrap.style.width=w+'px';
+      var h=wrap.scrollHeight;
+      if(h<=0){ reset(); return; }
+      k=Math.min(1, Math.max(0.55,(vh-2)/h));
+      w=Math.max(vw, Math.min(2400, vw/k));
+    }
+    if(k<0.72){ reset(); return; }                   // below this the type stops being readable — scroll instead
+    wrap.style.width=w+'px';
+    wrap.style.transform='scale('+k+')';
+    wrap.style.height=Math.floor((vh-1)/k)+'px';
+  }
+  function schedule(){ clearTimeout(raf); raf=setTimeout(fit,16); }   // timer, not rAF: rAF never fires in a hidden tab
+  var tries=0; function retry(){ if(tries++>12) return; setTimeout(schedule, 60*tries); }
+  btn.addEventListener('click',function(){ on=!on; btn.setAttribute('aria-pressed',String(on)); btn.textContent=on?'\u2922 fit to screen':'\u2922 actual size'; schedule(); });
+  window.addEventListener('resize',schedule);
+  // some hosts do not deliver resize/ResizeObserver events; poll the viewport so the fit is never stale
+  var lw=0,lh=0;
+  setInterval(function(){
+    var vw=document.documentElement.clientWidth, vh=window.innerHeight;
+    if(vw!==lw||vh!==lh){ lw=vw; lh=vh; tries=0; schedule(); }
+  },400);
+  window.addEventListener('load',schedule);
+  if(document.fonts&&document.fonts.ready) document.fonts.ready.then(schedule);
+  if(window.ResizeObserver) new ResizeObserver(schedule).observe(document.documentElement);
+  schedule();
+})();
+</script>
+</body>
+</html>

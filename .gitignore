@@ -1,0 +1,16 @@
+node_modules/
+.env
+*.log
+.DS_Store
+
+# credentials and session material - never committed
+infra/entra/certs/*.pem
+.lab/tokens/
+.lab/traces/
+.lab/sessions.json
+.lab/*.cookies
+.lab/*.err
+.lab/a1-update.json
+
+# generated directory dump (contains other tenant users' assignments)
+.lab/phase6-directory.txt

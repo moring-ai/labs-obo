@@ -1,0 +1,65 @@
+{
+  "agentRuntimeName": "labsOBO_agent1_runtime",
+  "description": "labsOBO | A1 - proves runtime authorization by claims (aud + azp + roles). Echo image reused from labtesta2a.",
+  "agentRuntimeArtifact": {
+    "containerConfiguration": {
+      "containerUri": "603011031216.dkr.ecr.us-east-1.amazonaws.com/labtesta2a-agent1:v9"
+    }
+  },
+  "roleArn": "arn:aws:iam::603011031216:role/labsOBO-Agent1ExecutionRole",
+  "networkConfiguration": {
+    "networkMode": "PUBLIC"
+  },
+  "protocolConfiguration": {
+    "serverProtocol": "HTTP"
+  },
+  "authorizerConfiguration": {
+    "customJWTAuthorizer": {
+      "discoveryUrl": "https://login.microsoftonline.com/a3430156-893d-4661-9dad-dce8308b8c21/v2.0/.well-known/openid-configuration",
+      "allowedAudience": [
+        "5e5c2e3c-35b8-4817-8dc9-96b09adb6865"
+      ],
+      "customClaims": [
+        {
+          "inboundTokenClaimName": "azp",
+          "inboundTokenClaimValueType": "STRING",
+          "authorizingClaimMatchValue": {
+            "claimMatchValue": {
+              "matchValueString": "05d1bf77-a2e4-4c1c-9ef1-31dff291dd45"
+            },
+            "claimMatchOperator": "EQUALS"
+          }
+        },
+        {
+          "inboundTokenClaimName": "roles",
+          "inboundTokenClaimValueType": "STRING_ARRAY",
+          "authorizingClaimMatchValue": {
+            "claimMatchValue": {
+              "matchValueString": "labsOBO.AgentInvoker"
+            },
+            "claimMatchOperator": "CONTAINS"
+          }
+        }
+      ]
+    }
+  },
+  "requestHeaderConfiguration": {
+    "requestHeaderAllowlist": [
+      "Authorization"
+    ]
+  },
+  "environmentVariables": {
+    "AGENT_MODE": "echo",
+    "AGENT_LABEL": "A1",
+    "AGENT_DISPLAY_NAME": "labsOBO-agent1",
+    "AGENT_IDENTITY_ID": "55521031-a294-41b8-b810-8d44427ebb5a",
+    "BLUEPRINT_APP_ID": "5e5c2e3c-35b8-4817-8dc9-96b09adb6865",
+    "TENANT_ID": "a3430156-893d-4661-9dad-dce8308b8c21",
+    "REQUIRED_ROLE": "labsOBO.AgentInvoker",
+    "CREDENTIAL_MODE": "none"
+  },
+  "tags": {
+    "Name": "labsOBO_agent1_runtime",
+    "lab": "labsOBO"
+  }
+}

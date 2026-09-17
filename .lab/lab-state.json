@@ -1,0 +1,119 @@
+{
+  "labPrefix": "labsOBO",
+  "tenantId": "a3430156-893d-4661-9dad-dce8308b8c21",
+  "admin": {
+    "upn": "BalajiNagarajKumar@MoringAI.onmicrosoft.com",
+    "objectId": "2faa25c9-590d-4723-aebb-f39f819ce489",
+    "role": "tenant admin running this lab (sponsor of the blueprint and agent)"
+  },
+  "azureCli": {
+    "appId": "04b07795-8ddb-461a-bbee-02f9e1bf7b46",
+    "preAuthorizedOnScope": true
+  },
+  "blueprintA1": {
+    "label": "BP-A1",
+    "displayName": "labsOBO-agent1-blueprint",
+    "clientId": "5e5c2e3c-35b8-4817-8dc9-96b09adb6865",
+    "objectId": "5e5c2e3c-35b8-4817-8dc9-96b09adb6865",
+    "principalId": "78c09fd1-f9d5-44be-a068-a4b9b8ec4c3a",
+    "identifierUri": "api://5e5c2e3c-35b8-4817-8dc9-96b09adb6865",
+    "requestedAccessTokenVersion": 2,
+    "scope": {
+      "value": "labsOBO_access_agent",
+      "id": "2926297f-6213-4310-8e4f-df4009521110",
+      "full": "api://5e5c2e3c-35b8-4817-8dc9-96b09adb6865/labsOBO_access_agent"
+    },
+    "appRole": {
+      "value": "labsOBO.AgentInvoker",
+      "id": "82331daa-1e37-4c1b-bd02-01aea1990f1f",
+      "displayName": "labsOBO Agent Invoker",
+      "allowedMemberTypes": [
+        "User"
+      ]
+    },
+    "appRoleAssignmentRequired": true,
+    "certificate": "infra/entra/certs/labsOBO-agent1-blueprint.{key,cert}.pem (T1 credential for Phase 16)"
+  },
+  "users": {
+    "alex": {
+      "role": "Alex - the entitled user",
+      "displayName": "Balaji Nagaraj Kumar",
+      "upn": "BalajiNagarajKumar@MoringAI.onmicrosoft.com",
+      "objectId": "2faa25c9-590d-4723-aebb-f39f819ce489",
+      "assigned": true
+    },
+    "sam": {
+      "role": "Sam - the non-entitled user",
+      "displayName": "Rajan",
+      "upn": "rajarajan@MoringAI.onmicrosoft.com",
+      "objectId": "0d03646a-2b8c-4465-8a35-04e4b5dfe73a",
+      "assigned": false
+    }
+  },
+  "callingApp": {
+    "label": "APP",
+    "displayName": "labsOBO-calling-app",
+    "clientId": "05d1bf77-a2e4-4c1c-9ef1-31dff291dd45",
+    "objectId": "d2e54068-da51-4d55-942d-ca06eb2a2133",
+    "principalId": "19537469-912b-40a2-b2ad-6a9837c65e7a",
+    "redirectUri": "http://localhost:3100/auth/callback",
+    "clientType": "confidential (certificate client assertion)",
+    "certificate": "infra/entra/certs/labsOBO-calling-app.{key,cert}.pem",
+    "adminConsent": [
+      "labsOBO_access_agent on BP-A1",
+      "openid profile offline_access User.Read on Microsoft Graph"
+    ]
+  },
+  "directClient": {
+    "label": "DIRECT",
+    "displayName": "labsOBO-direct-client",
+    "clientId": "001d0142-6942-49fe-a62f-83666c763ff2",
+    "objectId": "b074cd28-d4bb-4033-a592-0dd01d032a91",
+    "principalId": "cb134fd5-23e3-4870-841d-cb6aa2d122f2",
+    "redirectUri": "http://localhost:3100/auth/callback/direct",
+    "clientType": "public (PKCE, no credential)",
+    "adminConsent": [
+      "labsOBO_access_agent on BP-A1",
+      "openid profile offline_access User.Read on Microsoft Graph"
+    ]
+  },
+  "agentA1": {
+    "label": "A1",
+    "displayName": "labsOBO-agent1",
+    "clientId": "55521031-a294-41b8-b810-8d44427ebb5a",
+    "objectId": "55521031-a294-41b8-b810-8d44427ebb5a",
+    "parentBlueprint": "5e5c2e3c-35b8-4817-8dc9-96b09adb6865",
+    "credential": "none - agent identities cannot hold credentials; T1 uses the blueprint certificate",
+    "downstream": {
+      "resource": "Microsoft Graph",
+      "scope": "User.Read",
+      "call": "GET https://graph.microsoft.com/v1.0/me",
+      "consentPrincipal": "the agent identity SP"
+    }
+  },
+  "aws": {
+    "accountId": "603011031216",
+    "region": "us-east-1",
+    "executionRole": "labsOBO-Agent1ExecutionRole",
+    "runtime": {
+      "name": "labsOBO_agent1_runtime",
+      "arn": "arn:aws:bedrock-agentcore:us-east-1:603011031216:runtime/labsOBO_agent1_runtime-jmWKQODvAb",
+      "id": "labsOBO_agent1_runtime-jmWKQODvAb",
+      "image": "labtesta2a-agent1:v9 (echo mode)",
+      "authorizer": {
+        "aud": "BP-A1",
+        "azp": "05d1bf77-a2e4-4c1c-9ef1-31dff291dd45",
+        "roles": "CONTAINS labsOBO.AgentInvoker"
+      }
+    }
+  },
+  "controlApi": {
+    "displayName": "labsOBO-control-api",
+    "clientId": "277c8978-4e48-496e-844e-ca485ff5ea27",
+    "objectId": "c4ccade3-4d9d-448c-b5a0-ed20bfab79ad",
+    "principalId": "5635270b-95d4-42af-807e-773f0ab847c4",
+    "scopeId": "4e757bcb-d5e1-4040-a89b-a63f96d5b05a",
+    "roleId": "b9d246ba-e5ce-451a-8dd4-b736690c53a1",
+    "purpose": "control experiment for appRoleAssignmentRequired enforcement"
+  }
+}

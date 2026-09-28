@@ -1,0 +1,1 @@
+arn:aws:bedrock-agentcore:us-east-1:603011031216:runtime/labsOBO_jira_broker-1AOesg3Yix

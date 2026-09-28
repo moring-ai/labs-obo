@@ -1,0 +1,23 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    { "Sid": "EcrPull", "Effect": "Allow",
+      "Action": ["ecr:BatchGetImage","ecr:GetDownloadUrlForLayer"],
+      "Resource": "arn:aws:ecr:us-east-1:603011031216:repository/labsobo-agents" },
+    { "Sid": "EcrAuth", "Effect": "Allow", "Action": "ecr:GetAuthorizationToken", "Resource": "*" },
+    { "Sid": "Logs", "Effect": "Allow",
+      "Action": ["logs:CreateLogGroup","logs:CreateLogStream","logs:PutLogEvents","logs:DescribeLogStreams","logs:DescribeLogGroups"],
+      "Resource": "arn:aws:logs:us-east-1:603011031216:log-group:/aws/bedrock-agentcore/runtimes/*" },
+    { "Sid": "Xray", "Effect": "Allow",
+      "Action": ["xray:PutTraceSegments","xray:PutTelemetryRecords","xray:GetSamplingRules","xray:GetSamplingTargets"],
+      "Resource": "*" },
+    { "Sid": "Metrics", "Effect": "Allow", "Action": "cloudwatch:PutMetricData", "Resource": "*",
+      "Condition": { "StringEquals": { "cloudwatch:namespace": "bedrock-agentcore" } } },
+    { "Sid": "AtlassianAppCredentials", "Effect": "Allow",
+      "Action": "secretsmanager:GetSecretValue",
+      "Resource": "arn:aws:secretsmanager:us-east-1:603011031216:secret:labsobo/jira/oauth-client-*" },
+    { "Sid": "Step15Vault", "Effect": "Allow",
+      "Action": ["secretsmanager:GetSecretValue","secretsmanager:PutSecretValue","secretsmanager:DescribeSecret"],
+      "Resource": "arn:aws:secretsmanager:us-east-1:603011031216:secret:labsobo/jira/vault/*" }
+  ]
+}

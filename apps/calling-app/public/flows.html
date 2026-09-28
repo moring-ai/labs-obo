@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>labsOBO Token Flows</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+:root{
+  --bg:#F6F5F2;--card:#FFFFFF;--raised:#F0EEEA;--line:#E2DED7;--txt:#1C1E21;--muted:#6B6F76;--code:#F3F1ED;
+  --human:#7C5CD6;--app:#C9780A;--entra:#2B6CD4;--agent:#0E8A74;--res:#B04A8C;
+  --ok:#1E8E4E;--bad:#C23B32;--warn:#B7791F;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0E141B;--card:#161E27;--raised:#1D2731;--line:#2A3642;--txt:#E6EDF3;--muted:#8B98A5;--code:#0B1016;
+  --human:#B6A2FF;--app:#F2B544;--entra:#6EA8FE;--agent:#3DD6B5;--res:#E68AC4;--ok:#4ADE80;--bad:#F87171;--warn:#F2B544}}
+:root[data-theme="dark"]{
+  --bg:#0E141B;--card:#161E27;--raised:#1D2731;--line:#2A3642;--txt:#E6EDF3;--muted:#8B98A5;--code:#0B1016;
+  --human:#B6A2FF;--app:#F2B544;--entra:#6EA8FE;--agent:#3DD6B5;--res:#E68AC4;--ok:#4ADE80;--bad:#F87171;--warn:#F2B544}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--txt);font-family:var(--sans);font-size:14px;line-height:1.5}
+a{color:inherit}
+code,.mono{font-family:var(--mono);font-size:12.5px}
+header{display:flex;align-items:center;gap:16px;padding:12px 24px;border-bottom:1px solid var(--line);background:var(--card);position:sticky;top:0;z-index:3}
+header h1{margin:0;font-size:16px;font-weight:600}
+header nav{margin-left:auto;display:flex;gap:6px;align-items:center}
+header nav a,header nav label{font-size:13px;text-decoration:none;padding:6px 11px;border-radius:8px;color:var(--muted);cursor:pointer;display:inline-flex;gap:6px;align-items:center}
+header nav a:hover,header nav label:hover{background:var(--raised);color:var(--txt)}
+header nav a.here{color:var(--txt);background:var(--raised)}
+.layout{display:grid;grid-template-columns:300px 1fr;min-height:calc(100vh - 53px)}
+aside{border-right:1px solid var(--line);padding:16px 12px;overflow:auto;max-height:calc(100vh - 53px);position:sticky;top:53px}
+aside h3{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:14px 8px 6px;font-weight:600}
+aside h3:first-child{margin-top:0}
+.run{display:block;width:100%;text-align:left;border:0;background:transparent;color:var(--txt);font:inherit;padding:8px 10px;border-radius:8px;cursor:pointer}
+.run:hover{background:var(--raised)} .run.sel{background:var(--raised);box-shadow:inset 3px 0 0 var(--agent)}
+.run .t{display:block;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.run .m{display:flex;gap:8px;font-size:11.5px;color:var(--muted);margin-top:1px}
+.sd{width:7px;height:7px;border-radius:50%;display:inline-block;margin-top:6px;flex:none}
+.sd.done{background:var(--ok)} .sd.denied{background:var(--bad)} .sd.running{background:var(--warn)}
+.overview-link{display:block;padding:8px 10px;border-radius:8px;text-decoration:none;font-weight:500;font-size:13px}
+.overview-link:hover,.overview-link.sel{background:var(--raised)}
+.toggle{display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted);margin:14px 8px 0}
+main{padding:24px 32px 60px;max-width:1080px;width:100%}
+main h2{font-size:22px;margin:0 0 4px;font-weight:600;letter-spacing:-.01em}
+.sub{color:var(--muted);margin:0 0 20px;font-size:13.5px}
+/* pipeline */
+.pipe{display:flex;align-items:center;gap:0;margin:0 0 22px;overflow-x:auto;padding-bottom:4px}
+.node{flex:1;min-width:92px;border:1.5px solid var(--line);border-radius:10px;padding:9px 10px;background:var(--card);opacity:.45;text-align:center}
+.node.on{opacity:1}
+.node b{display:block;font-size:12.5px;font-weight:600}
+.node span{display:block;font-size:11px;color:var(--muted)}
+.node.planned{border-style:dashed}
+.node.human.on{border-color:var(--human)} .node.app.on{border-color:var(--app)} .node.entra.on{border-color:var(--entra)} .node.agent.on{border-color:var(--agent)} .node.res.on{border-color:var(--res)}
+.link{flex:none;width:18px;align-self:center;height:2px;background:var(--line)}
+.fork{display:flex;flex-direction:column;gap:6px;flex:1.1;min-width:120px}
+.fork .node{flex:none}
+/* provenance */
+.prov{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:26px}
+.prov div{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.prov small{display:block;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.prov b{display:block;font-size:14px;font-weight:600;margin-top:2px;overflow-wrap:anywhere}
+.prov .h b{color:var(--human)} .prov .c b{color:var(--app)} .prov .a b{color:var(--agent)} .prov .r b{color:var(--res)}
+/* steps */
+.steps{position:relative;display:flex;flex-direction:column;gap:14px}
+.steps::before{content:"";position:absolute;left:17px;top:18px;bottom:18px;width:2px;background:var(--line)}
+.step{position:relative;display:grid;grid-template-columns:36px 1fr;gap:14px}
+.num{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;font-weight:600;font-size:13.5px;background:var(--card);border:2px solid var(--line);z-index:1}
+.step.allow .num{border-color:var(--ok);color:var(--ok)} .step.deny .num{border-color:var(--bad);color:var(--bad)} .step.error .num{border-color:var(--warn);color:var(--warn)}
+.box{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;min-width:0}
+.route{font-size:11.5px;color:var(--muted);display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.route .p{font-weight:600;letter-spacing:.04em;text-transform:uppercase;font-size:10.5px;padding:1px 7px;border-radius:5px;background:var(--raised)}
+.p.human{color:var(--human)} .p.app{color:var(--app)} .p.entra{color:var(--entra)} .p.agent{color:var(--agent)} .p.res{color:var(--res)}
+.box h4{margin:4px 0 2px;font-size:15px;font-weight:600}
+.box .why{margin:0;color:var(--muted);font-size:13px}
+.verdict{float:right;font-size:11.5px;font-weight:600;padding:2px 9px;border-radius:999px;border:1px solid currentColor}
+.verdict.allow{color:var(--ok)} .verdict.deny{color:var(--bad)} .verdict.error{color:var(--warn)} .verdict.info{color:var(--muted)}
+.tok{margin-top:12px;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.tok .tn{display:flex;align-items:center;gap:8px;padding:7px 12px;background:var(--raised);font-family:var(--mono);font-weight:600;font-size:12.5px}
+.tok .tn small{font-family:var(--sans);font-weight:400;color:var(--muted);font-size:12px}
+.tok .tn button{margin-left:auto}
+.claims{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
+.claim{padding:8px 12px;border-top:1px solid var(--line);border-right:1px solid var(--line);min-width:0}
+.claim small{display:block;font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.claim b{display:block;font-weight:500;font-size:13px;overflow-wrap:anywhere}
+.claim code{display:block;color:var(--muted);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.claim .ck{float:right;font-weight:700}
+.ck.y{color:var(--ok)} .ck.n{color:var(--bad)}
+.checks{margin:12px 0 0;padding:0;list-style:none;font-size:13px}
+.checks li{display:flex;gap:8px;padding:5px 0;border-top:1px solid var(--line)}
+.checks li:first-child{border-top:0}
+.checks li span:last-child{color:var(--muted);margin-left:auto;font-family:var(--mono);font-size:12px;text-align:right;overflow-wrap:anywhere;max-width:50%}
+details{margin-top:10px}
+details summary{cursor:pointer;font-size:12.5px;color:var(--muted);font-weight:500}
+details summary:hover{color:var(--txt)}
+pre{background:var(--code);border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin:8px 0 0;overflow:auto;max-height:340px;font-family:var(--mono);font-size:12px;line-height:1.5;white-space:pre-wrap;word-break:break-word}
+button.sm{font:inherit;font-size:11.5px;border:1px solid var(--line);background:var(--card);color:var(--txt);padding:2px 8px;border-radius:6px;cursor:pointer}
+.chatq{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:22px;display:grid;gap:8px}
+.chatq .q{justify-self:end;background:color-mix(in srgb,var(--agent) 14%,var(--card));padding:6px 11px;border-radius:9px 2px 9px 9px;max-width:80%}
+.chatq .a{justify-self:start;background:var(--raised);padding:6px 11px;border-radius:2px 9px 9px 9px;max-width:80%;white-space:pre-wrap}
+.chatq .a.err{color:var(--bad)}
+/* overview catalog */
+table.cat{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;font-size:13px}
+table.cat th,table.cat td{text-align:left;padding:10px 12px;border-top:1px solid var(--line);vertical-align:top}
+table.cat th{border-top:0;font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:600;background:var(--raised)}
+table.cat td:first-child{font-family:var(--mono);font-weight:600;white-space:nowrap}
+.pill{display:inline-block;font-size:11.5px;font-weight:600;padding:2px 9px;border-radius:999px;white-space:nowrap}
+.pill.seen{color:var(--ok);background:color-mix(in srgb,var(--ok) 13%,transparent)}
+.pill.no{color:var(--muted);background:var(--raised)}
+.pill.plan{color:var(--warn);background:color-mix(in srgb,var(--warn) 13%,transparent)}
+.pill a{text-decoration:none}
+.empty{color:var(--muted);padding:40px 0}
+.stepno{display:inline-block;font-family:var(--mono);font-size:11px;font-weight:600;color:var(--muted);border:1px solid var(--line);border-radius:5px;padding:0 6px;margin-right:8px;vertical-align:2px}
+.simb{display:inline-block;font-family:var(--sans);font-size:10px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--warn);background:color-mix(in srgb,var(--warn) 14%,transparent);border-radius:4px;padding:0 6px;margin-left:8px;vertical-align:2px}
+.hidden-note{font-size:12.5px;color:var(--muted);margin:16px 0 0 50px}
+@media (max-width:900px){.layout{grid-template-columns:1fr}aside{position:static;max-height:none;border-right:0;border-bottom:1px solid var(--line)}main{padding:18px 16px 40px}.prov{grid-template-columns:1fr 1fr}header{padding:10px 16px;flex-wrap:wrap}}
+</style>
+</head>
+<body>
+<header>
+  <h1>labsOBO · Token flows</h1>
+  <nav>
+    <a href="/">Hunt</a><a class="here" href="/flows">Token flows</a><a href="/lab">Lab console</a>
+    <label title="Show full tokens. Turn off before screen-sharing: these are live credentials."><input type="checkbox" id="reveal" onchange="setReveal(this.checked)"> full tokens</label>
+  </nav>
+</header>
+<div class="layout">
+  <aside>
+    <a class="overview-link" id="ovLink" href="/flows" onclick="sel(null);return false">The token chain</a>
+    <div id="runs"></div>
+    <label class="toggle"><input type="checkbox" id="showAll" onchange="toggleAll(this.checked)"> include lab &amp; admin runs</label>
+  </aside>
+  <main id="main"><div class="empty">Loading…</div></main>
+</div>
+<script>
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const pref = (k, d) => { try { const v = localStorage.getItem(k); return v === null ? d : v === '1'; } catch { return d; } };
+const setPref = (k, on) => { try { localStorage.setItem(k, on ? '1' : '0'); } catch {} };
+let STATE = null, RUN = null, TOKENS = [];
+let selected = new URLSearchParams(location.search).get('run');
+let showAll = pref('labsobo_flows_all', false), reveal = pref('labsobo_reveal', false);
+const lab = (v) => STATE?.lab?.labels?.[v];
+const nice = (v) => { const l = lab(v); return l ? l.replace(/\s*\(.*\)$/, '') : v; };
+const when = (iso) => { const d = new Date(iso); return d.toDateString() === new Date().toDateString() ? d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : d.toLocaleDateString([], {month:'short', day:'numeric'}) + ' ' + d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}); };
+
+/* The token chain, as in the flow's table 18. `match` finds the token in recorded runs. */
+const CHAIN = [
+  { id: 'T_APP_A1', match: /T_APP_A1/, human: 'the user', actor: 'Calling App', aud: 'BP-A1', means: 'User authorized this app to invoke A1' },
+  { id: 'AWS workload JWT', match: /AWS workload JWT/, human: '—', actor: 'AgentCore IAM role', aud: 'Entra token exchange', means: 'This workload is the approved AWS runtime' },
+  { id: 'T1', match: /^T1$|T1_A1/, human: '—', actor: 'BP-A1 / A1 binding', aud: 'Token exchange', means: 'This is A1 under this blueprint' },
+  { id: 'T_A1_DEFENDER', match: /T_A1_DEFENDER/, human: 'the user', actor: 'A1', aud: 'Defender', means: 'A1 may access Defender on behalf of this user' },
+  { id: 'T_A1_BROKER', match: /T_A1_BROKER/, human: 'the user', actor: 'A1', aud: 'Jira Broker', means: 'A1 may ask the broker to perform Jira work for this user' },
+  { id: 'T_JIRA_USER', match: /T_JIRA_USER/, human: 'Atlassian user', actor: 'Jira integration', aud: 'Jira', means: "Perform this Jira operation using this user's Atlassian grant" },
+];
+
+function setReveal(on){ reveal = on; setPref('labsobo_reveal', on); if (selected) loadRun(); }
+function toggleAll(on){ showAll = on; setPref('labsobo_flows_all', on); renderList(); if (RUN) renderRun(); }
+function sel(id){ selected = id; history.replaceState(null, '', id ? `/flows?run=${id}` : '/flows'); renderList(); id ? loadRun() : renderOverview(); }
+
+async function refresh(){
+  STATE = await (await fetch('/api/state')).json();
+  renderList();
+  if (selected) { if (!RUN || RUN.id !== selected) loadRun(); } else renderOverview();
+}
+const isWorkflow = (r) => ['chat', 'signin', 'jira-link'].includes(r.kind) || (r.kind === 'action' && /Invoke|token/i.test(r.title));
+function shortTitle(r){
+  if (r.chat?.text) return `“${r.chat.text}”`;
+  if (r.kind === 'jira') return r.title.replace(/^Jira: create /, 'Ticket: ').replace(/ as [^"]+$/, '');
+  if (r.kind === 'jira-link') return 'Connect Atlassian (3LO)';
+  return r.title.replace(/^Sign in as (\w+) via (\w+).*$/, (_, u, c) => `Sign in · ${u[0] + u.slice(1).toLowerCase()} via ${c}`)
+                .replace(/ as [^()]+$/, '');
+}
+function renderList(){
+  if (!STATE) return;
+  const runs = STATE.runs.filter((r) => showAll || isWorkflow(r));
+  const groups = [['Hunts', runs.filter((r) => r.kind === 'chat')], ['Atlassian links (steps 12-13)', runs.filter((r) => r.kind === 'jira-link')], ['Sign-ins', runs.filter((r) => r.kind === 'signin')],
+                  ['Other runs', runs.filter((r) => !['chat', 'signin', 'jira', 'jira-link'].includes(r.kind))]];
+  $('#runs').innerHTML = groups.filter(([, l]) => l.length).map(([h, l]) => `<h3>${h}</h3>` + l.slice(0, 40).map((r) =>
+    `<button class="run ${r.id === selected ? 'sel' : ''}" onclick="sel('${r.id}')"><span class="t">${esc(shortTitle(r))}</span><span class="m"><span class="sd ${esc(r.status)}"></span>#${r.seq} · ${when(r.startedAt)}${r.session?.user?.name ? ' · ' + esc(r.session.user.name.split(' ')[0]) : ''}</span></button>`).join('')).join('')
+    || '<div class="empty" style="padding:12px">No runs yet. Send a chat message.</div>';
+  $('#ovLink').classList.toggle('sel', !selected);
+  $('#showAll').checked = showAll;
+}
+
+/* ---------- overview ---------- */
+function renderOverview(){
+  RUN = null;
+  const seen = (c) => c.match && STATE.runs.find((r) => (r.tokens || []).some((n) => c.match.test(n)));
+  $('#main').innerHTML = `<h2>The token chain</h2>
+    <p class="sub">Three identities stay separate at every hop: <b>who asked</b> (the human), <b>who executed</b> (the agent), and <b>what they may touch</b> (the resource). The calling app establishes the human delegation, AgentCore establishes the agent workload, Entra combines the two at each OBO boundary, and Jira uses the user's own Atlassian grant through the broker.</p>
+    ${pipeline(new Set(['human','app','entra','agentcore','a1','sts','defender','broker','jira']), true)}
+    <table class="cat"><tr><th>Token</th><th>Human (oid)</th><th>Actor (azp)</th><th>Audience</th><th>Meaning</th><th>In this lab</th></tr>
+    ${CHAIN.map((c) => { const r = seen(c); return `<tr><td>${esc(c.id)}</td><td>${esc(c.human)}</td><td>${esc(c.actor)}</td><td>${esc(c.aud)}</td><td>${esc(c.means)}</td><td>${
+      r ? `<span class="pill seen"><a href="#" onclick="sel('${r.id}');return false">seen · run #${r.seq}</a></span>` : '<span class="pill no">not seen yet</span>'}</td></tr>`; }).join('')}
+    </table>
+    <p class="sub" style="margin-top:16px">Pick a hunt or sign-in on the left to see its exchanges step by step, numbered like the flow.</p>`;
+}
+
+/* ---------- one run ---------- */
+async function loadRun(){
+  const r = await fetch(`/api/runs/${selected}?reveal=${reveal ? 1 : 0}`); if (!r.ok) { $('#main').innerHTML = '<div class="empty">That run no longer exists.</div>'; return; }
+  RUN = await r.json(); renderRun();
+}
+const PARTY = { BROWSER: ['User', 'human'], APP: ['Calling app', 'app'], ENTRA: ['Entra', 'entra'], AGENTCORE: ['AgentCore', 'agent'], A1: ['Agent A1', 'agent'], GRAPH: ['Graph', 'res'], 'AZ-CLI': ['Azure CLI', 'app'],
+                DEFENDER: ['Defender', 'res'], BROKER: ['Jira broker', 'res'], VAULT: ['Vault', 'res'], ATLASSIAN: ['Atlassian', 'res'], JIRA: ['Jira', 'res'], STS: ['AWS STS', 'app'], REGISTRY: ['Tool registry', 'app'] };
+const party = (k) => { const [n, c] = PARTY[k] || [k, '']; return `<span class="p ${c}">${esc(n)}</span>`; };
+const hasTok = (h, re) => (h.tokens || []).some((t) => re.test(t.name));
+
+/** Turn a recorded hop into a plain-language step, or null when it is lab/admin plumbing. */
+function stepOf(h){
+  if (h.actor === 'ADMIN') return null;
+  if (h.label && h.step) return { step: h.step, title: h.label, why: h.title };
+  if (h.to === 'BROWSER') return { step: '2', title: 'Browser goes to Entra to sign in', why: 'The app sends the user to Microsoft with PKCE. It never sees the password.' };
+  if (h.from === 'BROWSER') return { step: '2', title: h.verdict === 'deny' ? 'Entra refused the sign-in' : 'Entra hands back a one-time code', why: 'A code, not a token. Only the app can redeem it.' };
+  if (h.from === 'APP' && h.to === 'ENTRA' && hasTok(h, /T_APP_A1/)) return /Redeem/.test(h.title)
+      ? { step: '3-4', title: 'Calling app redeems the code → T_APP_A1', why: 'The app proves itself with its certificate (private_key_jwt). Entra checks the user may invoke A1.' }
+      : { step: '4', title: 'Calling app asks for a fresh T_APP_A1', why: 'refresh_token grant. Entra re-checks the role assignment when it issues the token.' };
+  if (h.from === 'APP' && h.to === 'ENTRA' && /BP-A1 token/.test(h.title)) return { title: 'Calling app asks for T_APP_A1', why: 'Entra refused to issue it.' };
+  if (h.from === 'AZ-CLI') return { title: 'Azure CLI gets a T_APP_A1', why: 'Same audience, different client (azp = Azure CLI).' };
+  if (h.from === 'APP' && (h.to === 'A1' || h.to === 'AGENTCORE')) return { step: '5', title: h.to === 'AGENTCORE' ? 'Calling app → AgentCore with Bearer T_APP_A1; its JWT authorizer checks it and forwards Authorization to A1' : 'Calling app → local A1 with Bearer T_APP_A1', why: 'Authorization: Bearer T_APP_A1. This is the human delegation proof.' };
+  if (h.from === 'A1' && h.to === 'A1') return { title: 'A1 checks the inbound token', why: 'The same rules the AgentCore JWT authorizer applies: signature, aud, azp, roles, scp.' };
+  if (h.from === 'A1' && h.to === 'ENTRA' && /^T1/.test(h.title)) return { title: 'A1 proves it is A1 → T1', why: 'The blueprint authenticates with its own credential and names the child agent with fmi_path.' };
+  if (h.from === 'A1' && h.to === 'ENTRA') return { title: 'On-behalf-of: T_APP_A1 + T1 → Graph token', why: 'client_assertion = T1 (agent), assertion = T_APP_A1 (human). The user stays; the actor becomes A1.' };
+  if (h.from === 'A1' && h.to === 'GRAPH') return { title: 'A1 calls the resource as the user', why: 'GET /me with the OBO token. Graph should answer with the same person who signed in.' };
+  return null;
+}
+const FRIENDLY = [[/T_APP_A1/, 'T_APP_A1'], [/^T1$|T1_A1/, 'T1'], [/AWS workload JWT/, 'AWS workload JWT'], [/T_A1_OBO/, 'T_A1_OBO'], [/T_A1_DEFENDER/, 'T_A1_DEFENDER'], [/T_A1_BROKER/, 'T_A1_BROKER'], [/T_JIRA_USER/, 'T_JIRA_USER'], [/Graph/, 'Graph token']];
+const friendly = (n) => (FRIENDLY.find(([re]) => re.test(n)) || [0, n])[1];
+const GRAPH_APP = '00000003-0000-0000-c000-000000000000';
+const ROLE = { oid: 'Human', azp: 'Client / actor', aud: 'Audience', scp: 'Delegated scope', roles: 'App role', iss: 'Issuer', sub: 'Subject' };
+
+function tokenCard(t){
+  if (t.error || !t.checks) return '';
+  const cells = t.checks.filter((c) => ROLE[c.claim]).map((c) => {
+    let v = Array.isArray(c.value) ? c.value.join(', ') : c.value;
+    let ok = c.ok;
+    // v1 tokens (Microsoft Graph) carry appid instead of azp, and the resource URI instead of its app id as aud.
+    if (c.claim === 'azp' && v === undefined && t.claims?.appid) { v = t.claims.appid; if (c.expect) ok = v === c.expect; }
+    if (c.claim === 'aud' && c.expect === GRAPH_APP && v === 'https://graph.microsoft.com') ok = true;
+    const shown = c.claim === 'oid' && t.claims?.name ? t.claims.name : (nice(v) ?? v);
+    const ck = ok === null ? '' : ok ? '<span class="ck y">✓</span>' : '<span class="ck n">✗</span>';
+    const role = c.claim === 'oid' && t.claims?.idtyp === 'app' ? 'Subject (app-only)' : ROLE[c.claim];
+    return `<div class="claim"><small>${role} ${ck}</small><b>${esc(shown)}</b><code title="${esc(v)}">${esc(c.claim)} = ${esc(v)}</code></div>`;
+  }).join('');
+  let raw = '';
+  if (t.raw) { const i = TOKENS.push(t.raw) - 1; raw = `<button class="sm" onclick="copyTok(${i})">copy JWT</button>`; }
+  return `<div class="tok"><div class="tn">${esc(friendly(t.name))} <small>${esc(t.name)}</small>${raw}</div><div class="claims">${cells}</div></div>`;
+}
+async function copyTok(i){ try { await navigator.clipboard.writeText(TOKENS[i]); } catch {} }
+const fmt = (v) => typeof v === 'string' ? v : JSON.stringify(v, null, 2);
+
+function pipeline(on, overview){
+  const n = (k, cls, name, sub, planned) => `<div class="node ${cls} ${on.has(k) ? 'on' : ''} ${planned ? 'planned' : ''}"><b>${name}</b><span>${sub}</span></div>`;
+  return `<div class="pipe">${n('human','human','User','signs in')}<div class="link"></div>${n('app','app','Calling app','T_APP_A1')}<div class="link"></div>${n('entra','entra','Entra','issues tokens')}<div class="link"></div>${n('agentcore','agent','AgentCore','JWT authorizer')}<div class="link"></div>${n('a1','agent','Agent A1','T_APP_A1 + T1')}<div class="link"></div>
+    <div class="fork">${n('sts','app','AWS STS','workload JWT → T1')}${n('defender','res','Defender','T_A1_DEFENDER')}${n('broker','res','Jira broker','T_A1_BROKER, vault')}${n('jira','res','Jira','T_JIRA_USER')}</div></div>`;
+}
+
+function renderRun(){
+  TOKENS = [];
+  const r = RUN; const hops = r.hops.map((h) => ({ h, s: stepOf(h) }));
+  const visible = hops.filter((x) => showAll || x.s);
+  const on = new Set();
+  for (const { h } of visible) for (const k of [h.from, h.to]) on.add({ BROWSER: 'human', APP: 'app', 'AZ-CLI': 'app', ENTRA: 'entra', AGENTCORE: 'agentcore', A1: 'a1', GRAPH: h.from === 'A1' ? 'graph' : null,
+                                                                          DEFENDER: 'defender', BROKER: 'broker', VAULT: 'broker', ATLASSIAN: 'broker', JIRA: 'jira', STS: 'sts' }[k]);
+  if (hops.some(({ h }) => h.to === 'AGENTCORE' && h.verdict === 'allow')) on.add('a1');
+  // provenance from the tokens actually recorded
+  const all = r.hops.flatMap((h) => h.tokens || []).filter((t) => t.claims);
+  const user = all.find((t) => /T_APP_A1/.test(t.name))?.claims || r.session?.user;
+  const obo = all.find((t) => /T_A1_DEFENDER/.test(t.name))?.claims ?? all.find((t) => /T_A1_BROKER/.test(t.name))?.claims ?? all.find((t) => /T_A1_OBO/.test(t.name))?.claims;
+  const reached = [all.some((t) => /T_A1_DEFENDER/.test(t.name)) && 'Defender', all.some((t) => /T_A1_BROKER/.test(t.name)) && 'Jira broker',
+                   r.hops.some((h) => h.to === 'JIRA' && h.verdict === 'allow' && /^Create /.test(h.label ?? '')) && 'Jira', all.some((t) => /T_A1_OBO/.test(t.name)) && 'Microsoft Graph'].filter(Boolean);
+  const actorOf = (c) => c?.azp ?? c?.appid;  // v1 tokens (e.g. Microsoft Graph) carry appid instead of azp
+  const prov = `<div class="prov">
+    <div class="h"><small>Who asked</small><b>${esc(user?.name || r.session?.user?.name || '—')}</b></div>
+    <div class="c"><small>Through</small><b>${esc(nice(all.find((t) => /T_APP_A1/.test(t.name))?.claims?.azp) || (r.client === 'direct' ? 'Direct client' : r.client === 'azcli' ? 'Azure CLI' : 'Calling app'))}</b></div>
+    <div class="a"><small>Executed by</small><b>${obo ? esc(nice(actorOf(obo))) : hops.some(({ h }) => h.from === 'A1' || h.to === 'A1' || h.to === 'AGENTCORE') ? 'Agent A1' : '—'}</b></div>
+    <div class="r"><small>Resources reached</small><b>${esc(reached.join(' → ') || '—')}</b></div></div>`;
+  const ans = r.chat?.cards?.find((c) => c.type === 'answer' || c.type === 'error') ?? (r.chat?.reply ? { type: r.chat.reply.ok ? 'answer' : 'error', text: r.chat.reply.text } : null);
+  const chat = r.chat?.text ? `<div class="chatq"><div class="q">${esc(r.chat.text)}</div>${ans ? `<div class="a ${ans.type === 'error' ? 'err' : ''}">${esc(ans.text)}</div>` : ''}</div>` : '';
+  let n = 0;
+  const steps = visible.map(({ h, s }) => {
+    n += 1; const v = h.verdict || 'info';
+    const vt = { allow: 'passed', deny: 'refused', error: 'problem', info: 'info' }[v];
+    const toks = (h.tokens || []).filter((t) => !/^id_token/.test(t.name)).map(tokenCard).join('');
+    const checks = h.checks ? `<ul class="checks">${h.checks.map((c) => `<li><span class="ck ${c.ok ? 'y' : 'n'}">${c.ok ? '✓' : '✗'}</span><span>${esc(c.check.replace(/\s*\[.*\]/, '').replace(/\(https?:[^)]*\)/, ''))}</span><span>${esc(c.detail)}</span></li>`).join('')}</ul>` : '';
+    const req = h.request ? `<details><summary>Request &amp; response</summary>${h.request.curl ? `<pre>${esc(h.request.curl)}</pre>` : `<pre>${esc(h.request.method + ' ' + h.request.url)}</pre>`}${h.response ? `<pre>HTTP ${esc(h.response.status)}${h.response.durationMs !== undefined ? ` · ${h.response.durationMs} ms` : ''}\n${esc(fmt(h.response.body))}</pre>` : ''}</details>` : '';
+    return `<div class="step ${v}"><div class="num">${n}</div><div class="box"><span class="verdict ${v}">${vt}</span>
+      <div class="route">${party(h.from)}<span>→</span>${party(h.to)}${h.spliced ? '<span>· reported by A1</span>' : ''}</div>
+      <h4>${s?.step ? `<span class="stepno">step ${esc(s.step)}</span>` : ''}${esc(s ? s.title : h.title)}</h4><p class="why">${esc(s ? s.why : '')}</p>
+      ${h.summary && (v === 'deny' || v === 'error' || !s) ? `<p class="why" style="color:var(--txt);margin-top:6px">${esc(h.summary)}</p>` : ''}
+      ${checks}${toks}${req}</div></div>`;
+  }).join('');
+  const hidden = hops.length - visible.length;
+  $('#main').innerHTML = `<h2>${esc(r.chat ? 'Hunt' : shortTitle(r))}</h2>
+    <p class="sub">Run #${r.seq} · ${when(r.startedAt)} · ${r.status}</p>
+    ${chat}${pipeline(on)}${prov}
+    <div class="steps">${steps || '<div class="empty">No token exchanges in this run.</div>'}</div>
+    ${hidden ? `<p class="hidden-note">${hidden} lab/admin hop${hidden > 1 ? 's' : ''} hidden (Graph test calls, directory checks). <a href="#" onclick="toggleAll(true);return false">Show them</a> or open the <a href="/lab?run=${r.id}">lab console</a>.</p>` : ''}`;
+}
+
+$('#reveal').checked = reveal;
+refresh(); setInterval(() => { if (!selected) refresh(); else fetch('/api/state').then((r) => r.json()).then((s) => { STATE = s; renderList(); }); }, 5000);
+</script>
+</body>
+</html>

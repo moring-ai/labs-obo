@@ -15,6 +15,7 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from 
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
+import { JIRA, authorizeUrl, linkUser, vaultGet } from "../../lib/jira.mjs";
 import { cfg, ROOT, LABELS, label, decode, verify, summarizeToken, tokenRequest, doHttp, clientAssertion, ASSERTION_TYPE,
          pkce, randomState, redactDeep, azAccessToken } from "../../lib/entra.mjs";
 
@@ -34,7 +35,7 @@ mkdirSync(TRACE_DIR, { recursive: true }); mkdirSync(TOKEN_DIR, { recursive: tru
 // ---------------------------------------------------------------- runs (traces)
 const runs = new Map();
 for (const f of existsSync(TRACE_DIR) ? readdirSync(TRACE_DIR).filter((x) => x.endsWith(".json")).sort() : []) {
-  try { const r = JSON.parse(readFileSync(resolve(TRACE_DIR, f), "utf8")); runs.set(r.id, r); } catch { /* skip */ }
+  try { const r = JSON.parse(readFileSync(resolve(TRACE_DIR, f), "utf8")); if (!r.archived) runs.set(r.id, r); } catch { /* skip */ }
 }
 let seq = Math.max(0, ...[...runs.values()].map((r) => r.seq ?? 0));
 const persist = (run) => writeFileSync(resolve(TRACE_DIR, `${run.id}.json`), JSON.stringify(run, null, 2));
@@ -127,7 +128,7 @@ function loginRedirect(req, res, q) {
   const u = new URL(cfg.authorizeEndpoint);
   for (const [k, v] of Object.entries({ client_id: client.clientId, response_type: "code", redirect_uri: client.redirectUri, response_mode: "query",
       scope: scopes.join(" "), state, nonce, code_challenge: p.challenge, code_challenge_method: "S256", login_hint: user.upn, prompt })) u.searchParams.set(k, v);
-  pending.set(state, { runId: run.id, verifier: p.verifier, nonce, userKey, clientKey, scopeMode, resourceKey, createdAt: Date.now() });
+  pending.set(state, { runId: run.id, verifier: p.verifier, nonce, userKey, clientKey, scopeMode, resourceKey, returnTo: q.get("from") === "lab" ? "/lab" : "/", createdAt: Date.now() });
   addHop(run, { from: "APP", to: "BROWSER", kind: "redirect", phase: "Phase 8",
     title: `302 → Entra /authorize as ${client.name} (login_hint=${user.upn})`,
     request: { method: "GET", url: u.toString(), headers: {}, body: Object.fromEntries(u.searchParams), bodyType: "query",
@@ -146,9 +147,9 @@ async function callback(req, res, url, clientKey) {
     title: q.get("error") ? `Callback carried an ERROR: ${q.get("error")}` : "Callback with an authorization code",
     request: { method: "GET", url: url.toString(), headers: { host: req.headers.host, "user-agent": req.headers["user-agent"] }, body: Object.fromEntries(q), bodyType: "query",
                curl: `# what the browser requested\ncurl "${client.redirectUri}?code=\${LABSOBO_AUTH_CODE}&state=${state}"` },
-    response: { status: 302, body: { Location: `/?run=${run.id}` } }, verdict: q.get("error") ? "deny" : "info",
+    response: { status: 302, body: { Location: `${pend.returnTo ?? "/"}?run=${run.id}` } }, verdict: q.get("error") ? "deny" : "info",
     summary: q.get("error") ? `${q.get("error")}: ${q.get("error_description")}` : `Entra sent a one-time code for state ${state}; the app now redeems it server-side.` });
-  if (q.get("error")) { if (pend.resourceKey === "control") evidence(run, "CTRL", "denied", `${q.get("error")}: ${q.get("error_description")}`); else if (q.get("error") === "consent_required" || q.get("error") === "access_denied") evidence(run, "CONSENT", `${q.get("error")} (${(q.get("error_description") ?? "").match(/AADSTS\d+/)?.[0] ?? ""})`, (q.get("error_description") ?? "").split(" Trace ID")[0]); else evidenceForTokenOutcome(run, pend, { denied: true, code: (q.get("error_description") ?? "").match(/AADSTS\d+/)?.[0] ?? q.get("error"), flow: "authorize redirect error" }); finish(run, "denied"); return redirectHome(res, run); }
+  if (q.get("error")) { if (pend.resourceKey === "control") evidence(run, "CTRL", "denied", `${q.get("error")}: ${q.get("error_description")}`); else if (q.get("error") === "consent_required" || q.get("error") === "access_denied") evidence(run, "CONSENT", `${q.get("error")} (${(q.get("error_description") ?? "").match(/AADSTS\d+/)?.[0] ?? ""})`, (q.get("error_description") ?? "").split(" Trace ID")[0]); else evidenceForTokenOutcome(run, pend, { denied: true, code: (q.get("error_description") ?? "").match(/AADSTS\d+/)?.[0] ?? q.get("error"), flow: "authorize redirect error" }); finish(run, "denied"); return redirectHome(res, run, pend.returnTo); }
 
   // Redeem the code. APP proves itself with a certificate assertion; DIRECT has no credential (PKCE only).
   const R = resourceOf(pend.resourceKey);
@@ -174,7 +175,7 @@ async function callback(req, res, url, clientKey) {
     summary: t.ok ? `Entra issued an id_token for ${idc?.name} <${idc?.preferred_username}> (oid ${idc?.oid}${label(idc?.oid) ? " = " + label(idc?.oid) : ""})${nonceOk === false ? " — NONCE MISMATCH" : ""}, plus an access token for ${label(tokens[1]?.claims?.aud) ?? tokens[1]?.claims?.aud}${pend.resourceKey === "control" && tokens[1]?.claims?.aud === R.clientId ? ` — roles=${JSON.stringify(tokens[1]?.claims?.roles ?? null)} (Balaji is NOT assigned on the control API)` : ""}.`
                   : `Token request refused: ${t.error?.code ?? ""} ${t.error?.description ?? ""}`,
     note: assertionInfo ? `client assertion: ${assertionInfo.alg} x5t=${assertionInfo.x5t} iss=sub=APP aud=${assertionInfo.aud} jti=${assertionInfo.jti}` : "no client credential: labsOBO-direct-client is a public client" });
-  if (!t.ok) { if (pend.resourceKey === "control") evidence(run, "CTRL", "denied", `${t.error?.code}: ${t.error?.description}`); else evidenceForTokenOutcome(run, pend, { denied: true, code: t.error?.code, flow: "authorization_code" }); finish(run, "denied"); return redirectHome(res, run); }
+  if (!t.ok) { if (pend.resourceKey === "control") evidence(run, "CTRL", "denied", `${t.error?.code}: ${t.error?.description}`); else evidenceForTokenOutcome(run, pend, { denied: true, code: t.error?.code, flow: "authorization_code" }); finish(run, "denied"); return redirectHome(res, run, pend.returnTo); }
 
   const sid = randomUUID();
   const sess = { id: sid, userKey: userKeyFor(idc?.oid), clientKey: pend.clientKey, user: { oid: idc?.oid, name: idc?.name, upn: idc?.preferred_username },
@@ -208,9 +209,9 @@ async function callback(req, res, url, clientKey) {
     await requestBpToken(run, sess, "Phase 9 (step 2)");
   }
   finish(run, run.hops.some((h) => h.verdict === "deny") ? "denied" : "done"); saveSessions();
-  res.writeHead(302, { Location: `/?run=${run.id}`, "Set-Cookie": `labsobo_sid=${sid}; Path=/; HttpOnly` }); res.end();
+  res.writeHead(302, { Location: `${pend.returnTo ?? "/"}?run=${run.id}`, "Set-Cookie": `labsobo_sid=${sid}; Path=/; HttpOnly` }); res.end();
 }
-const redirectHome = (res, run) => { res.writeHead(302, { Location: `/?run=${run.id}` }); res.end(); };
+const redirectHome = (res, run, to = "/") => { res.writeHead(302, { Location: `${to}?run=${run.id}` }); res.end(); };
 function saveToken(userKey, clientKey, token) { writeFileSync(resolve(TOKEN_DIR, `T_APP_A1.${userKey}.${clientKey}.json`), JSON.stringify({ savedAt: new Date().toISOString(), access_token: token, claims: decode(token)?.claims }, null, 2)); }
 
 /** TEST 2/3: ask Entra for a BP-A1 token for the signed-in user (refresh_token grant; assignment is enforced at issuance). */
@@ -251,33 +252,33 @@ function evidenceForTokenOutcome(run, { userKey, clientKey }, { denied, code, cl
 }
 
 // ---------------------------------------------------------------- invoking A1
-async function invokeA1(run, sess, { target = "local", mode = "echo", tokenKind = "bp" }) {
+async function invokeA1(run, sess, { target = "local", mode = "echo", tokenKind = "bp", message = "run labsOBO Agent A1", extra = {} }) {
   const token = tokenKind === "graph" ? sess.graphToken : sess.bpToken;
   const tokenName = tokenKind === "graph" ? "Graph access token (WRONG audience on purpose)" : "LABSOBO_T_APP_A1";
-  if (!token) { addHop(run, { from: "APP", to: "APP", kind: "note", title: `No ${tokenName} in this session`, request: null, response: { status: 0, body: null }, verdict: "error", summary: "Sign in and obtain a BP-A1 token first." }); return; }
-  const payload = { lab: "labsOBO", message: "run labsOBO Agent A1", mode, trace_id: run.id };
+  if (!token) { addHop(run, { from: "APP", to: "APP", kind: "note", title: `No ${tokenName} in this session`, request: null, response: { status: 0, body: null }, verdict: "error", summary: "Sign in and obtain a BP-A1 token first." }); return null; }
+  const payload = { lab: "labsOBO", message, mode, trace_id: run.id, ...extra };
   let r, url, toLabel, headers;
   if (target === "agentcore") {
     const arn = existsSync(resolve(ROOT, ".lab/a1_runtime_arn.txt")) ? readFileSync(resolve(ROOT, ".lab/a1_runtime_arn.txt"), "utf8").trim() : null;
-    if (!arn) { addHop(run, { from: "APP", to: "AGENTCORE", kind: "note", title: "No AgentCore runtime configured", request: null, response: { status: 0, body: null }, verdict: "error", summary: "Run scripts/40-create-runtime.sh first." }); return; }
+    if (!arn) { addHop(run, { from: "APP", to: "AGENTCORE", kind: "note", title: "No AgentCore runtime configured", request: null, response: { status: 0, body: null }, verdict: "error", summary: "Run scripts/40-create-runtime.sh first." }); return null; }
     url = `https://bedrock-agentcore.${cfg.aws.region}.amazonaws.com/runtimes/${encodeURIComponent(arn)}/invocations?qualifier=DEFAULT`;
     headers = { Accept: "application/json", "X-Amzn-Bedrock-AgentCore-Runtime-Session-Id": `labsOBO-${randomUUID()}-${randomUUID().slice(0, 8)}`, Authorization: `Bearer ${token}` };
     toLabel = "AGENTCORE";
   } else {
     url = `${A1_LOCAL}/invocations`; headers = { Authorization: `Bearer ${token}` }; toLabel = "A1";
   }
-  r = await doHttp({ method: "POST", url, headers, json: payload, secretNames: { bearer: tokenKind === "graph" ? "LABSOBO_GRAPH_USER_TOKEN" : "LABSOBO_T_APP_A1" }, timeoutMs: 90000 });
+  r = await doHttp({ method: "POST", url, headers, json: payload, secretNames: { bearer: tokenKind === "graph" ? "LABSOBO_GRAPH_USER_TOKEN" : "LABSOBO_T_APP_A1" }, timeoutMs: mode === "investigate" ? 240000 : 90000 });
   const claims = decode(token)?.claims ?? {};
   const bodyObj = r.response.body && typeof r.response.body === "object" ? r.response.body : {};
   const reason = bodyObj.reason ?? bodyObj.message ?? bodyObj.Message ?? (typeof r.response.body === "string" ? r.response.body.slice(0, 200) : null);
   addHop(run, { from: "APP", to: toLabel, kind: "http", phase: "Phase 12",
-    title: `Invoke A1 on ${target === "agentcore" ? "Bedrock AgentCore" : "the local runtime"} with ${tokenName}${mode === "obo" ? " (mode=obo → Phase 16)" : ""}`,
-    request: r.request, response: { ...r.response, body: target === "local" ? { ...bodyObj, hops: undefined } : r.response.body },
+    title: `Invoke A1 on ${target === "agentcore" ? "Bedrock AgentCore" : "the local runtime"} with ${tokenName}${mode === "echo" ? "" : ` (mode=${mode})`}`,
+    step: "5", request: r.request, response: { ...r.response, body: Array.isArray(bodyObj.hops) ? { ...bodyObj, hops: undefined } : r.response.body },
     tokens: [summarizeToken(tokenName, token, { oid: cfg.users[sess.userKey]?.objectId ?? sess.user.oid, azp: cfg.app.clientId, aud: cfg.bp.clientId, scp: cfg.bp.scope, role: cfg.bp.roleValue }, { kind: "access" })],
     verdict: r.ok ? "allow" : "deny",
     summary: r.ok ? `HTTP ${r.response.status} — ${target === "agentcore" ? "AgentCore's JWT authorizer admitted the token (aud + azp + roles) and the container ran" : "A1 admitted the token"}.`
                   : `HTTP ${r.response.status} — ${target === "agentcore" ? "AgentCore rejected the token before any container ran" : "A1 rejected the token"}: ${reason ?? ""}` });
-  if (target === "local" && Array.isArray(bodyObj.hops)) spliceHops(run, bodyObj.hops);
+  if (Array.isArray(bodyObj.hops)) spliceHops(run, bodyObj.hops);
   // Evidence
   const wrongAud = claims.aud !== cfg.bp.clientId;
   const wrongAzp = claims.azp !== cfg.app.clientId;
@@ -285,9 +286,160 @@ async function invokeA1(run, sess, { target = "local", mode = "echo", tokenKind 
   else if (wrongAzp) evidence(run, "T05", (r.response.status === 401 || r.response.status === 403) ? "pass" : (r.ok ? "allowed-by-policy" : "unexpected"), `azp=${label(claims.azp) ?? claims.azp} → HTTP ${r.response.status} (${target})`);
   else if (!(claims.roles ?? []).includes(cfg.bp.roleValue)) evidence(run, "T09", (r.response.status === 401 || r.response.status === 403) ? "pass" : "unexpected", `${label(claims.oid) ?? claims.oid} token WITHOUT ${cfg.bp.roleValue} → HTTP ${r.response.status} (${target})`);
   else evidence(run, "T12", r.ok ? "pass" : "unexpected", `Alex token → HTTP ${r.response.status} (${target})`);
-  if (mode === "obo" && target === "local") evidence(run, "T08", bodyObj.obo?.ok ? "pass" : "fail", bodyObj.obo?.ok ? `OBO token oid=${label(bodyObj.obo.subject) ?? bodyObj.obo.subject}, azp=AGENT-A1; Graph /me answered for ${bodyObj.obo.downstream?.displayName}` : `${bodyObj.obo?.stage}: ${bodyObj.obo?.error?.code ?? bodyObj.obo?.error?.description ?? "not run"}`);
+  if ((mode === "obo" || mode === "investigate") && target === "local" && bodyObj.obo) evidence(run, "T08", bodyObj.obo?.ok ? "pass" : "fail", bodyObj.obo?.ok ? `OBO token oid=${label(bodyObj.obo.subject) ?? bodyObj.obo.subject}, azp=AGENT-A1; Graph /me answered for ${bodyObj.obo.downstream?.displayName}` : `${bodyObj.obo?.stage}: ${bodyObj.obo?.error?.code ?? bodyObj.obo?.error?.description ?? "not run"}`);
   finish(run);
+  return { ok: r.ok, status: r.response.status, reason, body: bodyObj, target, mode };
 }
+
+// ---------------------------------------------------------------- the SecOps agent (the front door on /)
+/**
+ * One chat message = one run, streamed to the browser as NDJSON events ({type:"start"|"step"|"card"|"done"}).
+ * The calling app's part of the flow: step 4 (hold a fresh T_APP_A1), step 5 (send it to AgentCore or the
+ * local A1), and steps 12-13 (the Atlassian consent and the callback that writes the broker's vault).
+ * Everything else happens in A1 and in the Jira broker, and comes back as their own hops.
+ */
+const ICON = (h) => h.to === "DEFENDER" ? "query" : h.to === "JIRA" ? "ticket" : ["ATLASSIAN", "BROKER", "VAULT"].includes(h.to) ? "link" : h.to === "STS" ? "cloud"
+  : h.to === "GRAPH" ? "user" : h.to === "ENTRA" ? "key" : h.from === h.to ? "shield" : "agent";
+const stepOfHop = (h) => ({ id: h.id, icon: ICON(h), step: h.step ?? null, label: h.label ?? h.title, detail: h.summary ?? "",
+                            status: h.verdict === "deny" || h.verdict === "error" ? "fail" : "done", actor: h.actor ?? "A1" });
+const cell = (v) => v === null || v === undefined ? "" : Array.isArray(v) ? v.join(", ") : typeof v === "object" ? JSON.stringify(v)
+  : typeof v === "string" && /^\d{4}-\d\d-\d\dT[\d:]+\.\d+Z$/.test(v) ? v.replace(/\.\d+Z$/, "Z") : String(v);
+
+function stepper(bucket, emit) {
+  return {
+    step(s) { const i = bucket.steps.findIndex((x) => x.id === s.id); const v = i >= 0 ? (bucket.steps[i] = { ...bucket.steps[i], ...s }) : (bucket.steps.push({ ...s, at: Date.now() }), bucket.steps.at(-1)); emit({ type: "step", step: v }); },
+    card(c) { bucket.cards.push(c); emit({ type: "card", card: c }); },
+  };
+}
+/** Step 4: make sure the session holds a T_APP_A1 that is not about to expire; renew it with the refresh token when needed. */
+async function ensureDelegation(run, sess) {
+  const fresh = () => sess.bpToken && (sess.bpTokenClaims?.exp ?? 0) * 1000 > Date.now() + 60000;
+  if (fresh()) return { ok: true, refreshed: false };
+  if (!sess.refreshToken) return { ok: false, error: "the token has expired and this session has no refresh token" };
+  const t = await requestBpToken(run, sess, "agent");
+  if (fresh()) return { ok: true, refreshed: true };
+  const d = (t.error?.description ?? "").split(/\r?\n| Trace ID/)[0];
+  return { ok: false, error: d.startsWith(t.error?.code ?? "\0") ? d : `${t.error?.code ?? ""} ${d}`.trim() };
+}
+const hhmm = (sec) => new Date(sec * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+async function delegationStep(run, sess, ui) {
+  ui.step({ id: "deleg", step: "4", icon: "key", label: "T_APP_A1: your delegation to A1", status: "running", actor: "APP" });
+  const d = await ensureDelegation(run, sess);
+  if (!d.ok) {
+    ui.step({ id: "deleg", status: "fail", detail: d.error });
+    ui.card({ type: "error", needsSignIn: true, title: "I can't act on your behalf right now", text: `Your T_APP_A1 has expired and Entra would not issue a new one: ${d.error}. Sign in again to continue.` });
+    return false;
+  }
+  const c = sess.bpTokenClaims ?? {};
+  ui.step({ id: "deleg", status: "done", detail: `${d.refreshed ? "Renewed. " : ""}oid = ${c.name ?? sess.user.name}, azp = ${label(c.azp) ?? c.azp}, aud = BP-A1, scp = ${c.scp}, roles = ${JSON.stringify(c.roles ?? [])}, valid until ${hhmm(c.exp)}` });
+  return true;
+}
+
+const jiraPending = new Map();   // Atlassian consent state -> { sid, oid, runId, text, target, at }
+const jiraLinkedCache = new Map();
+async function jiraLinked(sess) {
+  const hit = jiraLinkedCache.get(sess.user.oid);
+  if (hit && Date.now() - hit.at < 60000) return hit.v;
+  let v = null;
+  try { v = !!(await vaultGet(sess.bpTokenClaims?.tid ?? cfg.tenantId, sess.user.oid)); } catch { v = null; }
+  jiraLinkedCache.set(sess.user.oid, { v, at: Date.now() });
+  return v;
+}
+
+async function agentTurn(sess, { text, target = "local", resumeOf = null }, emit) {
+  const run = newRun({ kind: "chat", title: `Agent: "${text.slice(0, 60)}" as ${sess.user.name}`, user: sess.userKey, client: sess.clientKey });
+  run.session = { user: sess.user, userKey: sess.userKey, clientKey: sess.clientKey };
+  run.chat = { text, target, at: new Date().toISOString(), steps: [], cards: [], resumeOf };
+  emit({ type: "start", runId: run.id });
+  const ui = stepper(run.chat, emit);
+  const end = (status) => { finish(run, status); persist(run); emit({ type: "done", runId: run.id, status }); };
+  if (!(await delegationStep(run, sess, ui))) return end("denied");
+
+  ui.step({ id: "handoff", step: "5", icon: "agent", label: `Send the prompt to ${target === "agentcore" ? "Bedrock AgentCore" : "the local A1 runtime"} with Bearer T_APP_A1`,
+            status: "running", actor: "APP", detail: `{"prompt": "${text}"}` });
+  const out = await invokeA1(run, sess, { target, mode: "investigate", message: text });
+  if (!out) {
+    ui.step({ id: "handoff", status: "fail", detail: "no T_APP_A1 in this session" });
+    ui.card({ type: "error", needsSignIn: true, title: "No T_APP_A1", text: "Sign in again so the app holds your delegation." });
+    return end("denied");
+  }
+  if (!out.ok) {
+    ui.step({ id: "handoff", status: "fail", detail: `HTTP ${out.status}: ${out.reason ?? ""}` });
+    for (const h of out.body?.hops ?? []) ui.step(stepOfHop(h));
+    ui.card({ type: "error", title: target === "agentcore" ? "AgentCore's JWT authorizer turned the request away" : "A1 turned the request away", text: out.reason ?? `HTTP ${out.status}` });
+    return end("denied");
+  }
+  ui.step({ id: "handoff", status: "done", detail: target === "agentcore"
+    ? "Step 5-6: AgentCore's JWT authorizer admitted T_APP_A1 (issuer, aud = BP-A1, azp = APP, roles, scp) and forwarded the Authorization header to A1."
+    : "The local A1 runtime received the request." });
+  const b = out.body;
+  if (b.plan) ui.card({ type: "plan", intent: b.plan.intent, steps: b.plan.steps });
+  for (const h of b.hops ?? []) ui.step(stepOfHop(h));
+
+  if (b.identity) {
+    ui.card({ type: "answer", text: `I'm acting for ${b.identity.human} (${b.identity.upn}). Your request reached me through ${b.identity.client} with the role ${(b.identity.roles ?? []).join(", ")}. When I query Defender or ask the Jira broker, I exchange your token on-behalf-of: you stay the user in every token, and I am the actor.` });
+    ui.card({ type: "identity", human: b.identity.human, client: b.identity.client, agent: b.identity.agent, resource: "Defender, Jira broker" });
+    return end("done");
+  }
+  if (b.error) { ui.card({ type: "error", title: `A1 stopped at ${b.error.stage}`, text: b.error.detail }); return end("denied"); }
+  const inv = b.investigation;
+  if (inv) {
+    ui.card({ type: "answer", text: `${inv.summary}${inv.reason && !inv.needsTicket ? ` No ticket: ${inv.reason}.` : ""}` });
+    ui.card({ type: "kql", title: inv.title, table: inv.table, window: inv.window, query: inv.query, columns: inv.columns,
+              rows: (inv.rows ?? []).map((r) => inv.columns.map((c) => cell(r[c]))), rowCount: inv.rowCount, ms: inv.ms, error: inv.error, as: sess.user.name });
+    if (inv.finding) ui.card({ type: "finding", ...inv.finding });
+  }
+  const j = b.jira;
+  if (j?.status === "created") {
+    run.chat.jira = { status: "created", issue: j.issue };
+    ui.card({ type: "jira_created", issue: j.issue });
+  } else if (j?.status === "authorization_required") {
+    const state = randomUUID();
+    let url = null, err = null;
+    try { url = await authorizeUrl(state); } catch (e) { err = e.message; }
+    if (url) jiraPending.set(state, { sid: sess.id, oid: sess.user.oid, runId: run.id, text, target, at: Date.now() });
+    run.chat.jira = { status: "authorization_required" };
+    ui.step({ id: "consent", step: "12", icon: "link", label: "A1 returned authorization_required: the app asks you to connect Atlassian", status: url ? "done" : "fail", actor: "APP",
+              detail: url ? `{"status":"authorization_required","resource":"jira"}. A1 does not open a browser; the calling app owns this step.` : err });
+    ui.card(url ? { type: "jira_auth", authorizeUrl: url, scopes: JIRA.scopes, site: JIRA.site } : { type: "error", title: "Jira is not set up yet", text: err });
+  } else if (j?.status === "error") {
+    ui.card({ type: "error", title: "The ticket was not created", text: `${j.stage ?? "broker"}: ${j.error}` });
+  }
+  end(j?.status === "error" ? "denied" : "done");
+}
+
+/** Steps 12-13: Atlassian redirects the browser here with the code; bind (tid, oid) -> Atlassian account in the broker's vault. */
+async function jiraCallback(req, res, url) {
+  const q = url.searchParams; const state = q.get("state") ?? "";
+  const pend = jiraPending.get(state); jiraPending.delete(state);
+  const sess = sessionOf(req);
+  const page = (title, msg, ok, runId) => {
+    res.writeHead(ok ? 200 : 400, { "Content-Type": "text/html; charset=utf-8" });
+    res.end(`<!doctype html><meta charset="utf-8"><title>${esc(title)}</title><body style="font:15px system-ui;margin:40px;color:#141b24">
+<h2 style="margin:0 0 8px">${ok ? "✅" : "⚠️"} ${esc(title)}</h2><p>${esc(msg)}</p>
+<script>try{window.opener&&window.opener.postMessage({type:"labsobo-jira-linked",ok:${ok},runId:${JSON.stringify(runId ?? null)}},location.origin)}catch(e){}${ok ? "setTimeout(function(){window.close()},1500)" : ""}</script>`);
+  };
+  if (!pend || Date.now() - pend.at > 600000) return page("Link expired", "This Atlassian consent is unknown or older than 10 minutes. Start again from the chat.", false);
+  if (!sess || sess.id !== pend.sid || sess.user.oid !== pend.oid) return page("Different session", "This consent was started in another signed-in session, so it was not bound to you.", false);
+  if (q.get("error")) return page("Atlassian consent not given", `${q.get("error")}: ${q.get("error_description") ?? ""}`, false, pend.runId);
+  const run = newRun({ kind: "jira-link", title: `Connect Atlassian for ${sess.user.name} (steps 12-13)`, user: sess.userKey, client: sess.clientKey });
+  run.session = { user: sess.user, userKey: sess.userKey, clientKey: sess.clientKey };
+  addHop(run, { actor: "BROWSER", from: "BROWSER", to: "APP", step: "12", kind: "callback", label: "Atlassian sends your browser back with an authorization code",
+    title: "GET /jira/callback?code=…&state=…", request: { method: "GET", url: `${JIRA.redirectUri}?code=\${ATLASSIAN_AUTH_CODE}&state=${state}`, headers: {}, body: null, bodyType: "none" },
+    response: { status: 200, body: null }, verdict: "info", summary: "The state matches a consent this signed-in user started from the chat." });
+  let l;
+  try { l = await linkUser({ code: q.get("code"), user: { tid: sess.bpTokenClaims?.tid ?? cfg.tenantId, oid: sess.user.oid, upn: sess.user.upn, name: sess.user.name } }); }
+  catch (e) { l = { ok: false, error: e.message, hops: [] }; }
+  for (const h of l.hops) addHop(run, h);
+  finish(run, l.ok ? "done" : "denied");
+  jiraLinkedCache.delete(sess.user.oid);
+  const chatRun = runs.get(pend.runId);
+  if (chatRun?.chat) { chatRun.chat.jira = { status: l.ok ? "linked" : "link_failed", linkRunId: run.id }; persist(chatRun); }
+  return page(l.ok ? "Jira connected" : "Jira not connected",
+    l.ok ? `Atlassian account ${l.binding.atlassianName ?? ""} on ${l.binding.siteUrl} is bound to ${sess.user.name}. The chat resumes by itself; you can close this window.` : l.error, l.ok, pend.runId);
+}
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const streamTo = (res) => { res.writeHead(200, { "Content-Type": "application/x-ndjson; charset=utf-8", "Cache-Control": "no-cache" }); return (ev) => res.write(JSON.stringify(ev) + "\n"); };
 
 // ---------------------------------------------------------------- Azure CLI import (the operator's own token, no browser)
 async function importAzCli(run, scopeForm) {
@@ -371,18 +523,37 @@ function testMatrix() {
 // ---------------------------------------------------------------- HTTP plumbing
 const send = (res, status, body, headers = {}) => { res.writeHead(status, { "Content-Type": "application/json", ...headers }); res.end(JSON.stringify(body)); };
 const readBody = (req) => new Promise((r) => { let s = ""; req.on("data", (c) => (s += c)); req.on("end", () => { try { r(s ? JSON.parse(s) : {}); } catch { r({}); } }); });
-const runSummary = (r) => ({ id: r.id, seq: r.seq, kind: r.kind, title: r.title, user: r.user, client: r.client, status: r.status, startedAt: r.startedAt, hops: r.hops.length, evidence: r.evidence, session: r.session ?? null });
+const runSummary = (r) => ({ id: r.id, seq: r.seq, kind: r.kind, title: r.title, user: r.user, client: r.client, status: r.status, startedAt: r.startedAt, hops: r.hops.length, evidence: r.evidence, session: r.session ?? null,
+                        tokens: [...new Set(r.hops.flatMap((h) => (h.tokens ?? []).filter((t) => !t.error).map((t) => t.name)))], chat: r.chat ? { text: r.chat.text, ok: r.chat.reply?.ok ?? null } : null });
 async function a1Policy() { try { const r = await fetch(`${A1_LOCAL}/policy`, { signal: AbortSignal.timeout(1500) }); return { up: true, policy: await r.json() }; } catch { return { up: false, policy: null }; } }
 
 const server = createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${PORT}`); const p = url.pathname;
   try {
-    if (req.method === "GET" && (p === "/" || p === "/index.html")) { res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" }); return res.end(readFileSync(resolve(HERE, "public/index.html"))); }
+    const page = { "/": "chat.html", "/index.html": "chat.html", "/flows": "flows.html", "/lab": "index.html" }[p];
+    if (req.method === "GET" && page) { res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" }); return res.end(readFileSync(resolve(HERE, "public", page))); }
     if (req.method === "GET" && p === "/login") return loginRedirect(req, res, url.searchParams);
     if (req.method === "GET" && p === "/auth/callback") return callback(req, res, url, "app");
     if (req.method === "GET" && p === "/auth/callback/direct") return callback(req, res, url, "direct");
     if (req.method === "GET" && p === "/logout") { sessions.delete(cookieOf(req).labsobo_sid); saveSessions(); res.writeHead(302, { Location: "/", "Set-Cookie": "labsobo_sid=; Path=/; Max-Age=0" }); return res.end(); }
 
+    if (req.method === "GET" && p === "/jira/callback") return jiraCallback(req, res, url);
+    if (req.method === "GET" && p === "/api/chat") {
+      const sess = sessionOf(req);
+      const mine = sess ? [...runs.values()].filter((r) => r.kind === "chat" && r.chat && r.session?.user?.oid === sess.user.oid).sort((a, b) => a.seq - b.seq) : [];
+      return send(res, 200, { session: sess ? { user: sess.user, userKey: sess.userKey, clientKey: sess.clientKey, hasBpToken: !!sess.bpToken, canRefresh: !!sess.refreshToken,
+                                                exp: sess.bpTokenClaims?.exp ?? null, roles: sess.bpTokenClaims?.roles ?? null, azp: sess.bpTokenClaims?.azp ?? null, jiraLinked: await jiraLinked(sess) } : null,
+        jira: { site: JIRA.site, project: JIRA.project },
+        messages: mine.map((r) => ({ runId: r.id, text: r.chat.text, at: r.chat.at, target: r.chat.target, endedAt: r.endedAt ?? null, status: r.status, resumeOf: r.chat.resumeOf ?? null,
+          steps: r.chat.steps ?? [], cards: r.chat.cards ?? (r.chat.reply ? [{ type: r.chat.reply.ok ? "answer" : "error", text: r.chat.reply.text }] : []), jira: r.chat.jira ?? null })) });
+    }
+    if (req.method === "POST" && p === "/api/agent") {
+      const sess = sessionOf(req); if (!sess) return send(res, 401, { error: "no session" });
+      const b = await readBody(req); const text = String(b.text ?? "").trim(); if (!text) return send(res, 400, { error: "empty message" });
+      const emit = streamTo(res);
+      try { await agentTurn(sess, { text, target: b.target === "agentcore" ? "agentcore" : "local", resumeOf: b.resumeOf ?? null }, emit); } catch (e) { emit({ type: "error", error: String(e?.message ?? e) }); }
+      return res.end();
+    }
     if (req.method === "GET" && p === "/api/state") {
       const sess = sessionOf(req); const a1 = await a1Policy();
       const arn = existsSync(resolve(ROOT, ".lab/a1_runtime_arn.txt")) ? readFileSync(resolve(ROOT, ".lab/a1_runtime_arn.txt"), "utf8").trim() : null;

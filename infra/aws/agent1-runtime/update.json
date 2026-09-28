@@ -1,0 +1,59 @@
+{
+  "agentRuntimeId": "labsOBO_agent1_runtime-jmWKQODvAb",
+  "agentRuntimeArtifact": {
+    "containerConfiguration": {
+      "containerUri": "603011031216.dkr.ecr.us-east-1.amazonaws.com/labsobo-agents:20260924-204146"
+    }
+  },
+  "networkConfiguration": {
+    "networkMode": "PUBLIC"
+  },
+  "protocolConfiguration": {
+    "serverProtocol": "HTTP"
+  },
+  "requestHeaderConfiguration": {
+    "requestHeaderAllowlist": [
+      "Authorization"
+    ]
+  },
+  "description": "labsOBO | Agent A1: T1 from the AWS STS workload JWT; OBO to Defender and to the Jira broker.",
+  "roleArn": "arn:aws:iam::603011031216:role/labsOBO-Agent1ExecutionRole",
+  "authorizerConfiguration": {
+    "customJWTAuthorizer": {
+      "discoveryUrl": "https://login.microsoftonline.com/a3430156-893d-4661-9dad-dce8308b8c21/v2.0/.well-known/openid-configuration",
+      "allowedAudience": [
+        "5e5c2e3c-35b8-4817-8dc9-96b09adb6865"
+      ],
+      "customClaims": [
+        {
+          "inboundTokenClaimName": "azp",
+          "inboundTokenClaimValueType": "STRING",
+          "authorizingClaimMatchValue": {
+            "claimMatchValue": {
+              "matchValueString": "05d1bf77-a2e4-4c1c-9ef1-31dff291dd45"
+            },
+            "claimMatchOperator": "EQUALS"
+          }
+        },
+        {
+          "inboundTokenClaimName": "roles",
+          "inboundTokenClaimValueType": "STRING_ARRAY",
+          "authorizingClaimMatchValue": {
+            "claimMatchValue": {
+              "matchValueString": "labsOBO.AgentInvoker"
+            },
+            "claimMatchOperator": "CONTAINS"
+          }
+        }
+      ],
+      "allowedScopes": [
+        "labsOBO_access_agent"
+      ]
+    }
+  },
+  "environmentVariables": {
+    "LABSOBO_ROLE": "a1",
+    "A1_T1_CREDENTIAL": "aws-sts",
+    "AWS_REGION": "us-east-1"
+  }
+}

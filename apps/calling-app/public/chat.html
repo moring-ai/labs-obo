@@ -1,0 +1,462 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>labsOBO Hunt</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+:root{
+  --bg:#F4F6F9;--panel:#FFFFFF;--card:#FFFFFF;--raised:#EEF1F5;--line:#DDE3EA;--txt:#141B24;--muted:#627085;--code:#F6F8FA;
+  --agent:#0B8F7A;--human:#6B4FD8;--app:#B8700A;--def:#1F6FEB;--jira:#2F6BD8;--aws:#C2410C;
+  --high:#C8352B;--med:#B7791F;--low:#2D8A4E;--ok:#1E8E4E;--bad:#C8352B;
+  --kw:#8250DF;--str:#0A7A4B;--tbl:#1F6FEB;--fn:#B8700A;
+  --shadow:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.08);
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0A0F17;--panel:#0E1520;--card:#121B28;--raised:#182334;--line:#223044;--txt:#E3E9F2;--muted:#8392A8;--code:#0B121C;
+  --agent:#34D1B5;--human:#A594FF;--app:#F2B544;--def:#5AA9FF;--jira:#6AA2FF;--aws:#FB923C;
+  --high:#FF6B6B;--med:#F5B84B;--low:#4ADE80;--ok:#4ADE80;--bad:#FF6B6B;--kw:#C4A1FF;--str:#7EE0A8;--tbl:#6CB6FF;--fn:#F2B544;--shadow:none}}
+:root[data-theme="dark"]{
+  --bg:#0A0F17;--panel:#0E1520;--card:#121B28;--raised:#182334;--line:#223044;--txt:#E3E9F2;--muted:#8392A8;--code:#0B121C;
+  --agent:#34D1B5;--human:#A594FF;--app:#F2B544;--def:#5AA9FF;--jira:#6AA2FF;--aws:#FB923C;
+  --high:#FF6B6B;--med:#F5B84B;--low:#4ADE80;--ok:#4ADE80;--bad:#FF6B6B;--kw:#C4A1FF;--str:#7EE0A8;--tbl:#6CB6FF;--fn:#F2B544;--shadow:none}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--txt);font-family:var(--sans);font-size:14px;line-height:1.5}
+a{color:inherit}
+button{font:inherit;color:inherit}
+code{font-family:var(--mono);font-size:.92em}
+.shell{height:100dvh;display:grid;grid-template-columns:260px minmax(0,1fr) 300px}
+/* ---- left rail */
+.rail{background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
+.brand{display:flex;gap:10px;align-items:center;padding:16px 16px 12px}
+.logo{width:32px;height:32px;border-radius:9px;background:var(--agent);display:grid;place-items:center;color:#fff;font-weight:700;flex:none}
+.brand b{display:block;font-size:15px;letter-spacing:-.01em}
+.brand span{display:block;font-size:11.5px;color:var(--muted)}
+.newbtn{margin:4px 14px 10px;display:flex;align-items:center;gap:8px;justify-content:center;border:1px solid var(--line);background:var(--card);border-radius:9px;padding:8px;cursor:pointer;font-weight:500}
+.newbtn:hover{border-color:var(--agent)}
+.rail h6{margin:12px 16px 6px;font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.inv{flex:1;overflow:auto;padding:0 8px}
+.inv button{display:block;width:100%;text-align:left;background:transparent;border:0;border-radius:8px;padding:7px 10px;cursor:pointer}
+.inv button:hover{background:var(--raised)}
+.inv .t{display:flex;gap:7px;align-items:center;font-size:13px}
+.inv .t span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.inv .m{display:flex;gap:6px;align-items:center;font-size:11px;color:var(--muted);margin-left:15px}
+.sev{width:8px;height:8px;border-radius:50%;flex:none;background:var(--muted)}
+.sev.High{background:var(--high)} .sev.Medium{background:var(--med)} .sev.Low{background:var(--low)} .sev.Info{background:var(--muted)} .sev.fail{background:transparent;border:1.5px solid var(--bad)}
+.key{font-family:var(--mono);font-size:10.5px;font-weight:600;color:var(--jira);border:1px solid color-mix(in srgb,var(--jira) 40%,transparent);border-radius:4px;padding:0 4px}
+.conns{border-top:1px solid var(--line);padding:10px 12px 12px;display:grid;gap:6px}
+.conn{display:flex;align-items:center;gap:9px;font-size:12.5px;padding:5px 4px}
+.conn .ci{width:26px;height:26px;border-radius:7px;display:grid;place-items:center;flex:none;font-weight:700;font-size:11px;color:#fff}
+.conn .cn{flex:1;min-width:0} .conn .cn b{display:block;font-weight:500} .conn .cn small{display:block;color:var(--muted);font-size:11px}
+.seg{display:flex;border:1px solid var(--line);border-radius:7px;overflow:hidden;font-size:11.5px}
+.seg button{border:0;background:transparent;color:var(--muted);padding:3px 8px;cursor:pointer}
+.seg button.on{background:var(--agent);color:#fff}
+.me{display:flex;align-items:center;gap:9px;border-top:1px solid var(--line);padding:10px 14px}
+.me .av{width:30px;height:30px;border-radius:50%;background:var(--human);color:#fff;display:grid;place-items:center;font-weight:600;font-size:12px;flex:none}
+.me .cn{flex:1;min-width:0;font-size:12.5px} .me .cn b{display:block;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis} .me .cn small{display:block;color:var(--muted);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.me a{font-size:12px;color:var(--muted)}
+/* ---- center */
+.center{display:flex;flex-direction:column;min-width:0;min-height:0}
+.top{display:flex;align-items:center;gap:12px;padding:12px 24px;border-bottom:1px solid var(--line);background:var(--panel);min-height:56px}
+.top h1{margin:0;font-size:15px;font-weight:600}
+.top .sub{color:var(--muted);font-size:12.5px}
+.top nav{margin-left:auto;display:flex;gap:4px;align-items:center}
+.top nav a{font-size:12.5px;color:var(--muted);text-decoration:none;padding:5px 9px;border-radius:7px}
+.top nav a:hover{background:var(--raised);color:var(--txt)}
+.actingfor{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;border:1px solid var(--line);border-radius:999px;padding:4px 12px 4px 5px;text-decoration:none;background:var(--card);margin-left:6px}
+.actingfor:hover{border-color:var(--human)}
+.actingfor i{width:20px;height:20px;border-radius:50%;background:var(--human);color:#fff;display:grid;place-items:center;font-style:normal;font-size:10px;font-weight:600}
+.actingfor b{font-weight:600;color:var(--human)}
+.feed{flex:1;overflow-y:auto;padding:24px 0 12px}
+.col{max-width:840px;margin:0 auto;padding:0 24px}
+.turn{margin-bottom:30px}
+.q{display:flex;justify-content:flex-end;margin-bottom:14px}
+.q div{background:var(--human);color:#fff;padding:9px 14px;border-radius:14px 14px 4px 14px;max-width:80%;white-space:pre-wrap;overflow-wrap:anywhere}
+.q small{display:block;font-size:11px;opacity:.8;margin-bottom:2px}
+.a{display:grid;grid-template-columns:30px minmax(0,1fr);gap:12px}
+.a .av{width:30px;height:30px;border-radius:9px;background:var(--agent);color:#fff;display:grid;place-items:center;font-weight:700;font-size:11px}
+.a .body{display:flex;flex-direction:column;gap:10px;min-width:0}
+.who-line{font-size:12px;color:var(--muted)} .who-line a{color:var(--agent);text-decoration:none} .who-line a:hover{text-decoration:underline}
+/* trace */
+.trace{border:1px solid var(--line);border-radius:10px;background:var(--card)}
+.trace>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:8px;padding:8px 12px;font-size:12.5px;color:var(--muted)}
+.trace>summary::-webkit-details-marker{display:none}
+.trace>summary .chev{margin-left:auto;transition:transform .15s;font-size:15px;line-height:1}
+.trace[open]>summary .chev{transform:rotate(90deg)}
+.trace>summary b{color:var(--txt);font-weight:500}
+.steps{list-style:none;margin:0;padding:2px 12px 10px}
+.st{display:grid;grid-template-columns:22px minmax(0,1fr);gap:9px;padding:5px 0;animation:in .25s ease}
+@keyframes in{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:none}}
+.st .si{width:22px;height:22px;border-radius:6px;display:grid;place-items:center;background:var(--raised);color:var(--muted)}
+.st.done .si{color:var(--ok)} .st.fail .si{color:var(--bad)} .st.running .si{color:var(--agent)}
+.st .sl{font-size:13px}
+.st .sd{font-size:12px;color:var(--muted);overflow-wrap:anywhere}
+.stepno{display:inline-block;min-width:22px;text-align:center;font-family:var(--mono);font-size:10.5px;font-weight:600;color:var(--muted);border:1px solid var(--line);border-radius:4px;padding:0 4px;margin-right:6px;vertical-align:1px}
+.who-tag{font-size:10px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;border-radius:4px;padding:0 5px;margin-right:6px;vertical-align:1px}
+.who-tag.APP{color:var(--app);background:color-mix(in srgb,var(--app) 12%,transparent)} .who-tag.A1{color:var(--agent);background:color-mix(in srgb,var(--agent) 12%,transparent)}
+.who-tag.BROKER{color:var(--jira);background:color-mix(in srgb,var(--jira) 12%,transparent)} .who-tag.BROWSER{color:var(--human);background:color-mix(in srgb,var(--human) 12%,transparent)}
+.spin{width:12px;height:12px;border:2px solid var(--line);border-top-color:var(--agent);border-radius:50%;animation:sp .8s linear infinite;flex:none}
+@keyframes sp{to{transform:rotate(360deg)}}
+/* cards */
+.text{white-space:pre-wrap;font-size:14.5px}
+.plan{font-size:13px;color:var(--muted)}
+.plan ol{margin:4px 0 0;padding-left:20px} .plan li{margin:1px 0}
+.card{border:1px solid var(--line);border-radius:12px;background:var(--card);box-shadow:var(--shadow);overflow:hidden}
+.card .ch{display:flex;align-items:center;gap:8px;padding:9px 14px;border-bottom:1px solid var(--line);font-size:12.5px;font-weight:600}
+.card .ch .ico{width:22px;height:22px;border-radius:6px;display:grid;place-items:center;color:#fff;flex:none}
+.card .ch .r{margin-left:auto;display:flex;gap:6px;align-items:center;font-weight:400;color:var(--muted)}
+.card .cb{padding:12px 14px}
+.sm{border:1px solid var(--line);background:var(--card);border-radius:6px;padding:2px 9px;font-size:11.5px;cursor:pointer}
+.sm:hover{border-color:var(--agent)}
+pre.kql{margin:0;padding:12px 14px;background:var(--code);font-family:var(--mono);font-size:12.5px;line-height:1.6;overflow-x:auto;border-bottom:1px solid var(--line)}
+.kw{color:var(--kw)} .s{color:var(--str)} .tb{color:var(--tbl);font-weight:600} .fn{color:var(--fn)} .pp{color:var(--muted)}
+.tblwrap{overflow:auto;max-height:340px}
+table.res{border-collapse:collapse;width:100%;font-size:12px}
+table.res th{position:sticky;top:0;text-align:left;font-weight:600;color:var(--muted);padding:7px 12px;background:var(--raised);white-space:nowrap;font-size:11.5px}
+table.res td{padding:6px 12px;border-top:1px solid var(--line);font-family:var(--mono);white-space:nowrap;max-width:320px;overflow:hidden;text-overflow:ellipsis}
+.empty-res{padding:14px;font-size:13px;color:var(--muted)}
+.err-res{padding:12px 14px;font-size:13px;color:var(--bad);font-family:var(--mono);white-space:pre-wrap}
+.foot{display:flex;gap:12px;align-items:center;padding:8px 14px;font-size:11.5px;color:var(--muted);border-top:1px solid var(--line);flex-wrap:wrap}
+.pill{font-size:11px;font-weight:600;border-radius:999px;padding:1px 9px}
+.pill.High{color:var(--high);background:color-mix(in srgb,var(--high) 13%,transparent)} .pill.Medium{color:var(--med);background:color-mix(in srgb,var(--med) 14%,transparent)}
+.pill.Low{color:var(--low);background:color-mix(in srgb,var(--low) 13%,transparent)} .pill.Info{color:var(--muted);background:var(--raised)}
+.finding h3{margin:0 0 8px;font-size:15px}
+.finding ul{margin:0;padding-left:18px;font-size:13.5px} .finding li{margin:3px 0;overflow-wrap:anywhere}
+.tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.tag{font-size:11.5px;font-family:var(--mono);border:1px solid var(--line);border-radius:6px;padding:1px 7px;color:var(--muted)}
+.why{font-size:12.5px;color:var(--muted);margin:0 0 10px}
+.acts{display:flex;gap:8px;align-items:center;margin-top:12px;flex-wrap:wrap}
+.btn{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:7px 14px;cursor:pointer;font-weight:500;font-size:13px;text-decoration:none;display:inline-block}
+.btn:hover{border-color:var(--muted)}
+.btn.pri{background:var(--jira);border-color:var(--jira);color:#fff} .btn.pri:hover{filter:brightness(1.08)}
+.btn.go{background:var(--agent);border-color:var(--agent);color:#fff}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.created{display:flex;gap:14px;align-items:center}
+.created .big{font-family:var(--mono);font-weight:600;font-size:18px;color:var(--jira);text-decoration:none}
+.created .big:hover{text-decoration:underline}
+.prov{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;background:var(--line);border-top:1px solid var(--line)}
+.prov div{background:var(--card);padding:8px 12px;font-size:12px;min-width:0}
+.prov small{display:block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.prov b{font-weight:500;overflow-wrap:anywhere}
+.err{border-color:color-mix(in srgb,var(--bad) 45%,var(--line))}
+.err .ch{color:var(--bad)}
+/* empty + sign in */
+.hero{max-width:740px;margin:6vh auto 0;padding:0 24px;text-align:center}
+.hero h2{font-size:26px;margin:0 0 8px;letter-spacing:-.02em;font-weight:600}
+.hero p{color:var(--muted);margin:0 auto 26px;max-width:560px}
+.starters{display:grid;grid-template-columns:1fr 1fr;gap:10px;text-align:left}
+.starter{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:12px 14px;cursor:pointer;box-shadow:var(--shadow);text-align:left}
+.starter:hover{border-color:var(--agent)}
+.starter b{display:block;font-size:13.5px;font-weight:600;margin-bottom:2px}
+.starter span{font-size:12.5px;color:var(--muted)}
+.starter code{font-size:11px;color:var(--def)}
+.signin{max-width:420px;margin:10vh auto 0;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:28px;text-align:center;box-shadow:var(--shadow)}
+.signin .logo{width:48px;height:48px;border-radius:13px;margin:0 auto 12px}
+.signin h2{margin:0 0 6px;font-size:20px}
+.signin p{color:var(--muted);font-size:13.5px;margin:0 0 20px}
+.msbtn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;border:1px solid var(--line);background:var(--card);padding:10px;border-radius:10px;cursor:pointer;margin-top:8px;font-weight:500}
+.msbtn:hover{border-color:var(--agent)} .msbtn small{color:var(--muted);font-weight:400}
+.ms{width:16px;height:16px;display:grid;grid-template-columns:1fr 1fr;gap:1.5px}
+.ms i:nth-child(1){background:#F25022}.ms i:nth-child(2){background:#7FBA00}.ms i:nth-child(3){background:#00A4EF}.ms i:nth-child(4){background:#FFB900}
+/* composer */
+.composer{padding:10px 0 16px}
+.box{display:flex;gap:8px;align-items:flex-end;border:1px solid var(--line);background:var(--card);border-radius:14px;padding:8px 8px 8px 14px;box-shadow:var(--shadow)}
+.box:focus-within{border-color:var(--agent)}
+.box textarea{flex:1;border:0;background:transparent;resize:none;font:inherit;font-size:14.5px;color:var(--txt);outline:none;padding:6px 0;max-height:160px}
+.send{width:36px;height:36px;border-radius:10px;border:0;background:var(--agent);color:#fff;display:grid;place-items:center;cursor:pointer;flex:none}
+.send:disabled{opacity:.35;cursor:not-allowed}
+.hint{font-size:11.5px;color:var(--muted);margin-top:7px;text-align:center}
+/* right panel */
+.side{background:var(--panel);border-left:1px solid var(--line);padding:16px;overflow:auto;display:flex;flex-direction:column;gap:18px}
+.side h6{margin:0 0 8px;font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.dl{display:grid;gap:6px}
+.dl div{border:1px solid var(--line);border-radius:9px;padding:7px 10px;background:var(--card)}
+.dl small{display:block;font-size:10.5px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;font-weight:600}
+.dl b{font-weight:600;font-size:13px}
+.dl .h b{color:var(--human)} .dl .c b{color:var(--app)} .dl .g b{color:var(--agent)} .dl .r b{color:var(--def)}
+.chain{list-style:none;margin:0;padding:0;position:relative}
+.chain::before{content:"";position:absolute;left:10px;top:12px;bottom:12px;width:2px;background:var(--line)}
+.chain li{position:relative;display:grid;grid-template-columns:22px minmax(0,1fr);gap:9px;padding:5px 0;opacity:.45}
+.chain li.on{opacity:1}
+.chain .dot{width:22px;height:22px;border-radius:50%;border:2px solid var(--line);background:var(--panel);display:grid;place-items:center;font-size:11px;z-index:1}
+.chain li.on .dot{border-color:var(--ok);color:var(--ok)} .chain li.na .dot{border-style:dashed}
+.chain b{font-family:var(--mono);font-size:12px;font-weight:600} .chain small{display:block;font-size:11.5px;color:var(--muted)}
+.side .note{font-size:12px;color:var(--muted);line-height:1.5}
+.side a.link{font-size:12.5px;color:var(--agent);text-decoration:none;font-weight:500}
+@media (max-width:1180px){.shell{grid-template-columns:240px minmax(0,1fr)}.side{display:none}}
+@media (max-width:760px){.shell{grid-template-columns:minmax(0,1fr)}.rail{display:none}.col{padding:0 14px}.top{padding:10px 14px}.top .sub{display:none}.starters{grid-template-columns:1fr}.actingfor span{display:none}.prov{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="rail">
+    <div class="brand"><div class="logo"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></svg></div><div><b>labsOBO Hunt</b><span>Defender KQL · Jira · as you</span></div></div>
+    <button class="newbtn" onclick="newHunt()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>New hunt</button>
+    <h6>Investigations</h6>
+    <div class="inv" id="inv"></div>
+    <div class="conns">
+      <div class="conn"><div class="ci" style="background:var(--agent)">A1</div><div class="cn"><b>Agent A1</b><small id="a1st">…</small></div>
+        <div class="seg"><button id="tAc" onclick="setTarget('agentcore')" title="Bedrock AgentCore: JWT authorizer, T1 from AWS STS">AWS</button><button id="tLocal" onclick="setTarget('local')" title="Local A1 on :3101: T1 from the blueprint certificate">Local</button></div></div>
+      <div class="conn"><div class="ci" style="background:var(--def)">D</div><div class="cn"><b>Defender</b><small>Advanced Hunting · scopes from A1's consent</small></div></div>
+      <div class="conn"><div class="ci" style="background:var(--jira)">J</div><div class="cn"><b>Jira</b><small id="jst">…</small></div></div>
+    </div>
+    <div class="me" id="me"></div>
+  </aside>
+
+  <section class="center">
+    <div class="top">
+      <div><h1>Threat hunting</h1><div class="sub">Your prompt → A1 → Defender (KQL) → Jira broker → Jira, with your identity on every token</div></div>
+      <nav><a href="/flows">Token flows</a><a href="/lab">Lab</a><a class="actingfor" id="acting" href="/flows" title="See the delegation chain" hidden></a></nav>
+    </div>
+    <div class="feed" id="feed"></div>
+    <div class="composer"><div class="col">
+      <form class="box" onsubmit="send(event)">
+        <textarea id="text" rows="1" placeholder="e.g. Investigate failed sign-ins this week and create a Jira ticket if needed" disabled></textarea>
+        <button class="send" id="sendBtn" type="submit" disabled aria-label="Send"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+      </form>
+      <div class="hint">A1 hunts with <b>your</b> Defender permissions and files tickets with <b>your</b> Atlassian grant, through on-behalf-of tokens.</div>
+    </div></div>
+  </section>
+
+  <aside class="side" id="side"></aside>
+</div>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const hhmm = (d) => new Date(d).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+const initials = (n) => String(n || '?').split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase();
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+let CHAT = null, LAB = null, LIVE = null, busy = false;
+let target = (() => { try { return localStorage.getItem('labsobo_target') || 'agentcore'; } catch { return 'agentcore'; } })();
+const lab = (v) => LAB?.lab?.labels?.[v];
+const nice = (v) => (lab(v) || v || '').replace(/\s*\(.*\)$/, '');
+
+const ICONS = {
+  plan: '<path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/>',
+  key: '<circle cx="8" cy="15" r="4"/><path d="m11 12 9-9M17 6l3 3M15 8l2 2"/>',
+  agent: '<rect x="4" y="7" width="16" height="12" rx="3"/><path d="M12 3v4M9 13h.01M15 13h.01"/>',
+  shield: '<path d="M12 3 5 6v6c0 4.5 3 7.5 7 9 4-1.5 7-4.5 7-9V6z"/><path d="m9 12 2 2 4-4"/>',
+  user: '<circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/>',
+  cloud: '<path d="M7 18a4 4 0 0 1-.5-8 6 6 0 0 1 11.5 2 3 3 0 0 1-.5 6z"/>',
+  query: '<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/>',
+  link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
+  ticket: '<path d="M4 7h16v3a2 2 0 0 0 0 4v3H4v-3a2 2 0 0 0 0-4z"/><path d="M13 7v10" stroke-dasharray="2 2"/>',
+  check: '<path d="m5 12 5 5 9-10"/>', x: '<path d="M6 6l12 12M18 6 6 18"/>',
+};
+const svg = (k, s = 13) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS[k] || ICONS.agent}</svg>`;
+
+function setTarget(t){ target = t; try { localStorage.setItem('labsobo_target', t); } catch {} paintConns(); }
+function paintConns(){
+  $('#tLocal').classList.toggle('on', target === 'local'); $('#tAc').classList.toggle('on', target === 'agentcore');
+  if (!LAB) return;
+  const up = target === 'local' ? LAB.a1Local.up : !!LAB.agentcore.runtimeArn;
+  $('#a1st').innerHTML = `<span style="color:${up ? 'var(--ok)' : 'var(--bad)'}">●</span> ${target === 'local' ? 'local :3101 · T1 by certificate' : 'AgentCore · T1 by AWS STS'}`;
+  const s = CHAT?.session, j = CHAT?.jira;
+  $('#jst').innerHTML = !s ? 'sign in first' : s.jiraLinked === true ? `<span style="color:var(--ok)">●</span> linked · ${esc(j?.site)} · ${esc(j?.project)}`
+    : s.jiraLinked === false ? `not linked yet · your first ticket asks` : `${esc(j?.site)} · ${esc(j?.project)}`;
+}
+
+async function load(){
+  const [c, s] = await Promise.all([fetch('/api/chat').then((r) => r.json()), fetch('/api/state').then((r) => r.json())]);
+  CHAT = c; LAB = s; render();
+}
+
+/* ---------- KQL highlighting */
+function kqlHtml(q){
+  const KW = /^(where|project|summarize|join|kind|inner|leftouter|on|by|order|desc|asc|in~|in|has_any|has|and|or|extend|take|top|let|distinct|union)$/;
+  return String(q).split('\n').map((line, i) => {
+    const out = []; const re = /("[^"]*")|(\b[A-Za-z_]+(?=\())|(\|)|([A-Za-z_]+~?)|([^"|A-Za-z_]+)/g; let m;
+    while ((m = re.exec(line))) {
+      if (m[1]) out.push(`<span class="s">${esc(m[1])}</span>`);
+      else if (m[2]) out.push(`<span class="fn">${esc(m[2])}</span>`);
+      else if (m[3]) out.push('<span class="pp">|</span>');
+      else if (m[4]) out.push(/^(EntraId\w+|Alert(Info|Evidence)|Device\w+|Email\w+|UrlClickEvents)$/.test(m[4]) ? `<span class="tb">${esc(m[4])}</span>` : KW.test(m[4]) ? `<span class="kw">${esc(m[4])}</span>` : esc(m[4]));
+      else out.push(esc(m[5]));
+    }
+    return out.join('');
+  }).join('\n');
+}
+
+/* ---------- rendering */
+function stepsHtml(steps){
+  return steps.map((s) => `<li class="st ${esc(s.status)}"><div class="si">${s.status === 'running' ? '<div class="spin"></div>' : s.status === 'fail' ? svg('x') : svg(s.icon)}</div>
+    <div><div class="sl">${s.step ? `<span class="stepno" title="Step ${esc(s.step)} of the flow">${esc(s.step)}</span>` : ''}<span class="who-tag ${esc(s.actor || 'A1')}">${esc(s.actor === 'APP' ? 'app' : (s.actor || 'A1').toLowerCase() === 'broker' ? 'broker' : s.actor || 'A1')}</span>${esc(s.label)}</div>${s.detail ? `<div class="sd" title="${esc(s.detail)}">${esc(s.detail.length > 240 ? s.detail.slice(0, 240) + '…' : s.detail)}</div>` : ''}</div></li>`).join('');
+}
+function traceHtml(steps, live){
+  if (!steps?.length) return '';
+  const n = steps.length, fail = steps.some((s) => s.status === 'fail');
+  const ms = n > 1 && steps.at(-1).at && steps[0].at ? ((steps.at(-1).at - steps[0].at) / 1000).toFixed(1) : null;
+  const running = [...steps].reverse().find((s) => s.status === 'running') || steps.at(-1);
+  const head = live ? `<div class="spin"></div><b>${esc(running.label)}</b>`
+    : `<span style="color:${fail ? 'var(--bad)' : 'var(--ok)'}">${svg(fail ? 'x' : 'check')}</span><b>${fail ? 'Stopped' : 'Done'}</b>${ms ? ` in ${ms}s` : ''} · ${n} steps · steps ${esc([...new Set(steps.map((s) => s.step).filter(Boolean))].join(', '))} of the flow`;
+  return `<details class="trace" ${live || fail ? 'open' : ''}><summary>${head}<span class="chev">›</span></summary><ol class="steps">${stepsHtml(steps)}</ol></details>`;
+}
+function cardHtml(c, m){
+  switch (c.type) {
+    case 'plan': return c.intent === 'hunt' ? `<div class="plan">A1's plan:<ol>${c.steps.map((s) => `<li>${esc(s)}</li>`).join('')}</ol></div>` : '';
+    case 'answer': return `<div class="text">${esc(c.text)}</div>`;
+    case 'identity': return `<div class="card"><div class="prov" style="border-top:0;grid-template-columns:repeat(4,minmax(0,1fr))"><div><small>Human</small><b style="color:var(--human)">${esc(c.human)}</b></div><div><small>Client</small><b style="color:var(--app)">${esc(c.client)}</b></div><div><small>Agent</small><b style="color:var(--agent)">${esc(c.agent)}</b></div><div><small>Acts on</small><b style="color:var(--def)">${esc(c.resource)}</b></div></div></div>`;
+    case 'kql': return `<div class="card"><div class="ch"><span class="ico" style="background:var(--def)">${svg('query', 12)}</span>Defender Advanced Hunting · ${esc(c.table)}<span class="r"><button class="sm" onclick="copyKql(this)" data-q="${esc(c.query)}">Copy KQL</button></span></div>
+      <pre class="kql">${kqlHtml(c.query)}</pre>
+      ${c.error ? `<div class="err-res">Defender: ${esc(c.error)}</div>`
+        : !c.rowCount ? `<div class="empty-res">No rows. Nothing in ${esc(c.table)} matched in the last ${esc(c.window)}.</div>`
+        : `<div class="tblwrap"><table class="res"><tr>${c.columns.map((h) => `<th>${esc(h)}</th>`).join('')}</tr>${c.rows.map((r) => `<tr>${r.map((v) => `<td title="${esc(v)}">${esc(v)}</td>`).join('')}</tr>`).join('')}</table></div>`}
+      <div class="foot"><span>${c.rowCount ?? 0} rows</span>${c.ms !== undefined ? `<span>${c.ms} ms</span>` : ''}<span>last ${esc(c.window)}</span><span>ran as <b style="color:var(--human)">${esc(c.as)}</b> with T_A1_DEFENDER</span></div></div>`;
+    case 'finding': return `<div class="card finding"><div class="ch"><span class="pill ${esc(c.severity)}">${esc(c.severity)}</span>Finding<span class="r">counted from the rows above</span></div><div class="cb">
+      <h3>${esc(c.title)}</h3><ul>${c.evidence.map((e) => `<li>${esc(e)}</li>`).join('')}</ul>${(c.mitre || []).length ? `<div class="tags">${c.mitre.map((t) => `<span class="tag">${esc(t)}</span>`).join('')}</div>` : ''}</div></div>`;
+    case 'jira_auth': {
+      const linked = m.jira?.status === 'linked';
+      return `<div class="card"><div class="ch"><span class="ico" style="background:var(--jira)">${svg('link', 12)}</span>A1 needs your Jira permission first<span class="r">step 12</span></div><div class="cb">
+      <p class="why" style="margin:0 0 10px">A1 decided a ticket is needed, but the Jira broker has no Atlassian grant for you, so A1 answered <code>{"status":"authorization_required","resource":"jira"}</code>. Connect your Atlassian account (<code>${esc((c.scopes || []).join(' '))}</code>) and the hunt runs again to file it.</p>
+      ${linked ? `<span class="why">Connected. Resuming…</span>` : `<button class="btn pri" onclick="connectJira('${esc(m.runId)}', this)" data-url="${esc(c.authorizeUrl)}">Connect Atlassian</button>`}</div></div>`; }
+    case 'jira_created': { const i = c.issue; return `<div class="card"><div class="ch"><span class="ico" style="background:var(--ok)">${svg('check', 12)}</span>Ticket created in Jira<span class="r">step 16</span></div>
+      <div class="cb created"><a class="big" href="${esc(i.url)}" target="_blank" rel="noopener">${esc(i.key)}</a><div style="min-width:0"><b>${esc(i.summary)}</b><div style="font-size:12.5px;color:var(--muted)">${esc(i.project)} · ${esc(i.type)} · reporter ${esc(i.reporter)} · ${hhmm(i.createdAt)}</div></div></div>
+      <div class="prov"><div><small>Requested by</small><b>${esc(i.provenance?.requestedBy?.upn ?? i.provenance?.requestedBy?.name)}</b></div><div><small>Executed by</small><b>${esc(i.provenance?.executedBy?.name)}</b></div><div><small>Source</small><b>${esc(i.provenance?.source)}</b></div></div></div>`; }
+    case 'error': return `<div class="card err"><div class="ch">${svg('x', 14)} ${esc(c.title || 'Something went wrong')}</div><div class="cb"><div class="text" style="font-size:13.5px">${esc(c.text)}</div>${c.needsSignIn ? `<div class="acts"><button class="btn go" onclick="login('${esc(CHAT.session?.userKey || 'alex')}')">Sign in again</button><a class="btn" href="/lab">Open lab console</a></div>` : ''}</div></div>`;
+  }
+  return '';
+}
+function turnHtml(m){
+  const live = LIVE && LIVE.runId === m.runId;
+  const plan = (m.cards || []).filter((c) => c.type === 'plan');
+  const rest = (m.cards || []).filter((c) => c.type !== 'plan');
+  return `<div class="turn" id="t-${esc(m.runId)}"><div class="q"><div>${m.resumeOf ? '<small>Resumed after you connected Atlassian</small>' : ''}${esc(m.text)}</div></div>
+    <div class="a"><div class="av">A1</div><div class="body">
+      ${plan.map((c) => cardHtml(c, m)).join('')}
+      ${traceHtml(m.steps, live)}
+      ${rest.map((c) => cardHtml(c, m)).join('')}
+      ${!live && m.endedAt ? `<div class="who-line">${hhmm(m.endedAt)} · ${m.target === 'agentcore' ? 'Bedrock AgentCore' : 'local runtime'} · <a href="/flows?run=${esc(m.runId)}">token flow</a>${m.jira?.linkRunId ? ` · <a href="/flows?run=${esc(m.jira.linkRunId)}">Atlassian link flow</a>` : ''}</div>` : ''}
+    </div></div></div>`;
+}
+const STARTERS = [
+  ["Our agent's token failures", 'Investigate failed token requests by our agent in the last 24h and create a Jira ticket if needed', 'EntraIdSpnSignInEvents + EntraIdSignInEvents'],
+  ['Failed sign-ins this week', 'Investigate failed sign-ins this week and create a Jira ticket if needed', 'EntraIdSignInEvents'],
+  ['Defender alerts', 'Investigate the Defender alerts from the last 7 days and create a Jira ticket if needed', 'AlertInfo ⋈ AlertEvidence'],
+  ['My sign-ins', 'Show my sign-ins from the last 7 days', 'EntraIdSignInEvents'],
+];
+function allMsgs(){ const msgs = [...(CHAT?.messages || [])]; if (LIVE && !msgs.some((m) => m.runId === LIVE.runId)) msgs.push(LIVE.msg); return msgs; }
+function render(){
+  const s = CHAT.session, feed = $('#feed');
+  paintConns(); renderRail(); renderSide();
+  $('#text').disabled = $('#sendBtn').disabled = !s || busy;
+  $('#acting').hidden = !s;
+  if (s) $('#acting').innerHTML = `<i>${esc(initials(s.user.name))}</i><span>Acting for</span> <b>${esc(s.user.name.split(' ')[0])}</b>`;
+  if (!s) {
+    const u = LAB.lab.users;
+    feed.innerHTML = `<div class="signin"><div class="logo">${svg('shield', 24)}</div><h2>Sign in to start hunting</h2><p>A1 runs KQL in Defender and files Jira tickets. It does both <b>as you</b>, so the app needs your sign-in first (steps 2-4).</p>
+      <button class="msbtn" onclick="login('alex')"><span class="ms"><i></i><i></i><i></i><i></i></span>Sign in as ${esc(u.alex.displayName)} <small>· analyst, entitled</small></button>
+      <button class="msbtn" onclick="login('sam')"><span class="ms"><i></i><i></i><i></i><i></i></span>Sign in as ${esc(u.sam.displayName)} <small>· not entitled</small></button></div>`;
+    return;
+  }
+  const msgs = allMsgs();
+  if (!msgs.length) {
+    feed.innerHTML = `<div class="hero"><h2>What should I investigate, ${esc(s.user.name.split(' ')[0])}?</h2><p>I run the KQL in Microsoft Defender as you, count what comes back, and if you asked for one, create the Jira ticket through the broker with your own Atlassian grant.</p>
+      <div class="starters">${STARTERS.map(([t, q, tb]) => `<button class="starter" onclick="quick(this.dataset.q)" data-q="${esc(q)}"><b>${esc(t)}</b><span>${esc(q)}</span><br><code>${esc(tb)}</code></button>`).join('')}</div></div>`;
+    return;
+  }
+  const atBottom = feed.scrollHeight - feed.scrollTop - feed.clientHeight < 160;
+  feed.innerHTML = `<div class="col">${msgs.map(turnHtml).join('')}</div>`;
+  if (atBottom || LIVE) feed.scrollTop = feed.scrollHeight;
+}
+function renderRail(){
+  const s = CHAT.session;
+  $('#me').innerHTML = s ? `<div class="av">${esc(initials(s.user.name))}</div><div class="cn"><b>${esc(s.user.name)}</b><small>${esc(s.user.upn)}</small></div><a href="/logout" title="Sign out">Sign out</a>`
+                         : '<div class="cn"><small>Not signed in</small></div>';
+  $('#inv').innerHTML = [...(CHAT.messages || [])].reverse().map((m) => {
+    const f = (m.cards || []).find((c) => c.type === 'finding'); const err = (m.cards || []).some((c) => c.type === 'error');
+    const issue = (m.cards || []).find((c) => c.type === 'jira_created')?.issue;
+    return `<button onclick="jump('${esc(m.runId)}')"><div class="t"><span class="sev ${err ? 'fail' : esc(f?.severity || '')}"></span><span>${esc(f?.title || m.text)}</span></div>
+      <div class="m">${hhmm(m.at)}${issue ? ` · <span class="key">${esc(issue.key)}</span>` : ''}${m.jira?.status === 'authorization_required' ? ' · needs Jira consent' : ''}${err ? ' · stopped' : ''}</div></button>`;
+  }).join('') || '<div style="padding:4px 10px;font-size:12.5px;color:var(--muted)">No hunts yet.</div>';
+}
+function renderSide(){
+  const s = CHAT.session;
+  const m = allMsgs().at(-1);
+  const steps = m?.steps || [];
+  const has = (re) => steps.some((x) => x.status === 'done' && re.test(x.label));
+  const deleg = steps.some((x) => x.id === 'deleg' && x.status === 'done');
+  const onAws = m ? m.target === 'agentcore' : target === 'agentcore';
+  const chain = [
+    ['T_APP_A1', 'Human = you · client = calling app · aud = BP-A1', deleg],
+    ['AWS workload JWT', onAws ? 'AgentCore role → STS (step 7)' : 'not used: the local runtime proves T1 with the certificate', has(/workload JWT/), !onAws],
+    ['T1', 'I am labsOBO-agent1 (step 7)', has(/T1/)],
+    ['T_A1_DEFENDER', 'Human = you · actor = A1 · aud = Defender', has(/T_A1_DEFENDER/)],
+    ['T_A1_BROKER', 'Human = you · actor = A1 · aud = Jira broker', has(/T_A1_BROKER/)],
+    ['T_JIRA_USER', 'your Atlassian grant, held by the broker', has(/T_JIRA_USER/)],
+  ];
+  const created = (m?.cards || []).find((c) => c.type === 'jira_created');
+  const acting = [(m?.cards || []).some((c) => c.type === 'kql') && 'Defender', created && 'Jira'].filter(Boolean).join(', ');
+  $('#side').innerHTML = `<div><h6>Delegation</h6><div class="dl">
+      <div class="h"><small>Who asked</small><b>${esc(s?.user?.name || '—')}</b></div>
+      <div class="c"><small>Through</small><b>${esc(s?.azp ? nice(s.azp) : s ? 'calling app' : '—')}</b></div>
+      <div class="g"><small>Executed by</small><b>labsOBO-agent1${onAws ? ' on AgentCore' : ' (local)'}</b></div>
+      <div class="r"><small>Acted on</small><b>${esc(acting || '—')}</b></div></div></div>
+    <div><h6>Token chain${m ? ' · latest hunt' : ''}</h6><ul class="chain">${chain.map(([n, d, on, na]) => `<li class="${on ? 'on' : ''} ${na ? 'na' : ''}"><div class="dot">${on ? '✓' : ''}</div><div><b>${esc(n)}</b><small>${esc(d)}</small></div></li>`).join('')}</ul></div>
+    <div class="note">You stay the <code>oid</code> in every Entra token; only the actor and the audience change. Jira sees your own Atlassian grant; labsOBO keeps who asked, which agent ran and why on the issue.</div>
+    ${m?.runId && m.runId !== 'live' ? `<a class="link" href="/flows?run=${esc(m.runId)}">Open the full token flow →</a>` : '<a class="link" href="/flows">How the token chain works →</a>'}`;
+}
+function jump(id){ document.getElementById(`t-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+function newHunt(){ const f = $('#feed'); f.scrollTop = f.scrollHeight; $('#text').focus(); }
+function copyKql(b){ navigator.clipboard?.writeText(b.dataset.q).then(() => { b.textContent = 'Copied'; setTimeout(() => (b.textContent = 'Copy KQL'), 1200); }); }
+function login(as){ if (as !== 'alex' && as !== 'sam') as = 'alex'; location.href = `/login?${new URLSearchParams({ as, client: 'app', scopeMode: 'single', prompt: 'select_account' })}`; }
+function quick(t){ $('#text').value = t; send(); }
+
+/* ---------- streaming (NDJSON from the app; steps are revealed one at a time) */
+async function stream(url, body, onEvent){
+  const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  if (!r.ok || !r.body) { const j = await r.json().catch(() => ({})); throw new Error(j.error || `HTTP ${r.status}`); }
+  const rd = r.body.getReader(), dec = new TextDecoder(); let buf = '';
+  const queue = []; let pumping = false;
+  const pump = async () => { if (pumping) return; pumping = true; while (queue.length) { const ev = queue.shift(); onEvent(ev); if (ev.type === 'step' || ev.type === 'card') await sleep(ev.type === 'step' && ev.step.status !== 'running' ? 170 : 60); } pumping = false; };
+  for (;;) {
+    const { value, done } = await rd.read(); if (done) break;
+    buf += dec.decode(value, { stream: true }); let i;
+    while ((i = buf.indexOf('\n')) >= 0) { const line = buf.slice(0, i); buf = buf.slice(i + 1); if (line.trim()) queue.push(JSON.parse(line)); }
+    pump();
+  }
+  while (queue.length || pumping) await sleep(50);
+}
+function applyStep(bucket, s){ const i = bucket.steps.findIndex((x) => x.id === s.id); if (i >= 0) bucket.steps[i] = s; else bucket.steps.push(s); }
+async function ask(text, extra = {}){
+  busy = true;
+  LIVE = { runId: 'live', msg: { runId: 'live', text, at: new Date().toISOString(), target, steps: [], cards: [], resumeOf: extra.resumeOf ?? null } };
+  render();
+  try {
+    await stream('/api/agent', { text, target, ...extra }, (ev) => {
+      if (ev.type === 'start') { LIVE.runId = LIVE.msg.runId = ev.runId; }
+      else if (ev.type === 'step') applyStep(LIVE.msg, ev.step);
+      else if (ev.type === 'card') LIVE.msg.cards.push(ev.card);
+      else if (ev.type === 'error') LIVE.msg.cards.push({ type: 'error', text: ev.error });
+      render();
+    });
+  } catch (err) { LIVE.msg.cards.push({ type: 'error', text: String(err.message || err) }); render(); await sleep(1500); }
+  finally { busy = false; LIVE = null; await load(); $('#text').focus(); }
+}
+function send(e){ e?.preventDefault(); const text = $('#text').value.trim(); if (!text || busy) return; $('#text').value = ''; autosize(); ask(text); }
+
+/* ---------- steps 12-13: the Atlassian consent runs in a popup; the callback tells us when the vault has the binding */
+let pendingResume = null;
+function connectJira(runId, btn){
+  pendingResume = runId;
+  const w = window.open(btn.dataset.url, 'labsobo-jira', 'popup,width=640,height=780');
+  if (!w) location.href = btn.dataset.url;
+  btn.disabled = true; btn.textContent = 'Waiting for Atlassian…';
+}
+window.addEventListener('message', async (e) => {
+  if (e.origin !== location.origin || e.data?.type !== 'labsobo-jira-linked') return;
+  await load();
+  const m = CHAT.messages.find((x) => x.runId === (e.data.runId || pendingResume));
+  if (e.data.ok && m && !busy) ask(m.text, { resumeOf: m.runId, target: m.target });
+});
+
+function autosize(){ const t = $('#text'); t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 160) + 'px'; }
+$('#text').addEventListener('input', autosize);
+$('#text').addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } });
+paintConns(); load();
+</script>
+</body>
+</html>

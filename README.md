@@ -28,10 +28,16 @@ All ids live in `.lab/labsOBO.env` (the `LABSOBO_*` names from the plan) and `.l
 
 ```bash
 cd labsOBO
-node agents/agent1-local/server.mjs      # local A1 runtime, :3101
-node apps/calling-app/server.mjs         # calling app + UI, :3100
+npm run agent       # local A1 runtime, :3101
+npm run broker      # optional: a local Jira broker on :3102 (the tool registry points A1 at the AgentCore one)
+npm start           # calling app + UI, :3100
 open http://localhost:3100
 ```
+
+Three pages: `/` is the hunt chat (the flow end to end: prompt → A1 → Defender KQL → Jira
+broker → Jira), `/flows` shows each run's token exchanges numbered by the flow's steps, and
+`/lab` is the original lab console. The chat's AWS/Local switch picks where A1 runs; on AWS
+both A1 and the Jira broker run on Bedrock AgentCore and T1 comes from the AWS STS workload JWT.
 
 Prerequisites: `az login` as a tenant admin (the app borrows Graph tokens from that session
 for the directory reads/writes), and `aws sso login` for the AgentCore hops.
@@ -42,6 +48,12 @@ Provisioning is idempotent and already done; re-run only if objects are missing:
 ./scripts/10-entra-provision.sh    # Phases 1-7 (+ direct client, agent identity, consents)
 ./scripts/20-verify-directory.sh   # Phase 6 proof from Graph
 ./scripts/40-create-runtime.sh     # AgentCore runtime (Phase 12)
+./scripts/50-jira-broker-entra.sh  # Jira broker API in Entra + A1's consent for labsOBO_jira.create (step 14)
+./scripts/52-store-jira-client.sh  # YOU run this: Atlassian 3LO client id/secret into Secrets Manager (steps 12, 15)
+./scripts/55-agentcore-federation.sh  # step 7 on AWS: STS permission + federated credential on BP-A1; broker role
+./scripts/57-tool-registry.sh      # A1's runtime tool registry in SSM: where each tool is (never its scopes)
+./scripts/58-blueprint-inheritance.sh [--remove-direct]  # A1's Defender scope comes from BP-A1: declared, admin-consented, inheritable
+./scripts/60-deploy-agentcore.sh   # build the image, deploy A1 + the Jira broker to AgentCore
 ./tests/run-preflight.sh           # the autonomous suite (no browser)
 python3 tests/show-runs.py         # print every recorded run + the matrix
 ```

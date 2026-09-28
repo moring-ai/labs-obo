@@ -89,6 +89,13 @@
       "scope": "User.Read",
       "call": "GET https://graph.microsoft.com/v1.0/me",
       "consentPrincipal": "the agent identity SP"
+    },
+    "defenderPermission": {
+      "source": "blueprint inheritance",
+      "a1DirectGrant": "NONE",
+      "blueprintGrant": "AdvancedHunting.Read (AllPrincipals)",
+      "inheritable": "Defender: scopes allAllowed, roles none",
+      "requiredResourceAccess": "Defender AdvancedHunting.Read"
     }
   },
   "aws": {
@@ -105,6 +112,23 @@
         "azp": "05d1bf77-a2e4-4c1c-9ef1-31dff291dd45",
         "roles": "CONTAINS labsOBO.AgentInvoker"
       }
+    },
+    "federation": {
+      "issuer": "https://a12d7705-9b5d-4303-bc58-032cd357c9c4.tokens.sts.global.api.aws",
+      "subject": "arn:aws:iam::603011031216:role/labsOBO-Agent1ExecutionRole",
+      "audience": "api://AzureADTokenExchange",
+      "entraCredential": "labsOBO-agentcore-a1-runtime on BP-A1",
+      "brokerRole": "labsOBO-JiraBrokerExecutionRole"
+    },
+    "runtimes": {
+      "image": "603011031216.dkr.ecr.us-east-1.amazonaws.com/labsobo-agents:20260924-204146",
+      "a1": "labsOBO_agent1_runtime-jmWKQODvAb",
+      "broker": "labsOBO_jira_broker-1AOesg3Yix",
+      "brokerArn": "arn:aws:bedrock-agentcore:us-east-1:603011031216:runtime/labsOBO_jira_broker-1AOesg3Yix"
+    },
+    "toolRegistry": {
+      "parameter": "/labsobo/a1/tools",
+      "version": 1
     }
   },
   "controlApi": {
@@ -115,5 +139,13 @@
     "scopeId": "4e757bcb-d5e1-4040-a89b-a63f96d5b05a",
     "roleId": "b9d246ba-e5ce-451a-8dd4-b736690c53a1",
     "purpose": "control experiment for appRoleAssignmentRequired enforcement"
+  },
+  "jiraBroker": {
+    "displayName": "labsOBO-jira-broker",
+    "clientId": "06f3efec-575d-421d-9ec9-3e43f95b8e36",
+    "objectId": "85c69225-5f9a-41c6-bc81-e16e7ec03061",
+    "principalId": "edcbe6b2-144f-46cf-91e1-9ce8873f6f38",
+    "scope": "api://06f3efec-575d-421d-9ec9-3e43f95b8e36/labsOBO_jira.create",
+    "consent": "labsOBO_jira.create granted to the agent identity A1 (AllPrincipals)"
   }
 }

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>labsOBO · who may invoke Agent A1</title>
+<title>labsOBO lab console</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
 :root{--bg:#0B1526;--card:#132238;--raised:#1B2E4A;--code:#060D18;--line:#2E4260;--txt:#E6EDF7;--muted:#93A4BD;
@@ -16,6 +16,8 @@ header{padding:16px 24px;border-bottom:1px solid var(--line);display:flex;gap:24
 header h1{font-size:18px;margin:0;font-weight:700;letter-spacing:-.01em}
 header h1 small{color:var(--muted);font-weight:400;margin-left:10px;font-size:13px}
 .dir{display:flex;gap:10px;flex-wrap:wrap;margin-left:auto}
+header label.pill{cursor:pointer;border-color:var(--app);color:var(--txt)}
+.rawtok{max-height:180px;overflow:auto}
 .pill{border:1px solid var(--line);border-radius:999px;padding:4px 12px;font-size:12.5px;background:var(--card);display:inline-flex;gap:8px;align-items:center}
 .pill b{font-family:var(--mono);font-weight:600}
 .ok{color:var(--green)} .bad{color:var(--red)} .info{color:var(--entra)} .warn{color:var(--app)}
@@ -77,6 +79,8 @@ table.claims td.v small{display:block;color:var(--muted);font-family:var(--sans)
 <body>
 <header>
   <h1>labsOBO <small>Entra app-role assignment → who may invoke Agent A1 · every hop, every call, every response</small></h1>
+  <nav class="dir" style="margin-left:0"><a class="pill" href="/">Hunt</a><a class="pill" href="/flows">Token flows</a></nav>
+  <label class="pill" title="Show full tokens, codes and assertions. Untick before screen-sharing: these are live credentials."><input type="checkbox" id="reveal" onchange="setReveal(this.checked)"> show full tokens &amp; codes</label>
   <div class="dir" id="dir"></div>
 </header>
 <main>
@@ -138,7 +142,7 @@ table.claims td.v small{display:block;color:var(--muted);font-family:var(--sans)
   <section class="card">
     <h2>Runs</h2>
     <div class="runs" id="runs"></div>
-    <div class="btns" style="margin-top:8px"><label class="opt" style="margin:0"><input type="checkbox" id="reveal" onchange="loadRun()"> reveal tokens &amp; codes</label><button onclick="clearRuns()" style="margin-left:auto">clear</button></div>
+    <div class="btns" style="margin-top:8px"><button onclick="clearRuns()" style="margin-left:auto">clear</button></div>
   </section>
 </aside>
 <div class="timeline" id="timeline"><div class="empty">Pick a run on the left, or sign in.</div></div>
@@ -147,6 +151,10 @@ table.claims td.v small{display:block;color:var(--muted);font-family:var(--sans)
 <script>
 const $ = (s) => document.querySelector(s);
 let STATE = null, RUN = null, selected = new URLSearchParams(location.search).get('run');
+let TOKENS = [];
+function revealOn(){ try { const v = localStorage.getItem('labsobo_reveal'); return v === null ? true : v === '1'; } catch { return true; } }
+function setReveal(on){ try { localStorage.setItem('labsobo_reveal', on ? '1' : '0'); } catch {} loadRun(); }
+async function copyTok(i){ try { await navigator.clipboard.writeText(TOKENS[i]); toast('token copied'); } catch { toast('copy failed — select the text instead'); } }
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const lab = (v) => STATE?.lab?.labels?.[v];
 const named = (v) => lab(v) ? `${esc(v)} <small>= ${esc(lab(v))}</small>` : esc(v);
@@ -174,7 +182,7 @@ async function refresh(){
   $('#runs').innerHTML = STATE.runs.map(r => `<div class="run ${r.id===selected?'sel':''}" onclick="sel('${r.id}')"><span class="n">${r.id.slice(0,3)}</span><span class="t">${esc(r.title)}</span><span class="${r.status==='denied'?'bad':r.status==='done'?'ok':'warn'}">${esc(r.status)}</span></div>`).join('') || '<div class="empty" style="padding:10px">no runs yet</div>';
   if (selected) loadRun();
 }
-function sel(id){ selected = id; history.replaceState(null,'',`/?run=${id}`); refresh(); }
+function sel(id){ selected = id; history.replaceState(null,'',`/lab?run=${id}`); refresh(); }
 async function loadRun(){
   if (!selected) return;
   const r = await fetch(`/api/runs/${selected}?reveal=${$('#reveal').checked?1:0}`); if (!r.ok) return;
@@ -186,9 +194,13 @@ function claimsTable(t){
   const key = ['oid','azp','aud','scp','roles','idtyp'];
   const rows = t.checks.map(c => `<tr><td class="c">${c.claim}</td><td class="v">${named(Array.isArray(c.value)?JSON.stringify(c.value):c.value)}<small>${esc(c.meaning)}</small></td><td>${c.expect?`<code>${esc(lab(c.expect)||c.expect)}</code>`:'<span class="muted">—</span>'}</td><td class="st">${c.ok===null?'':c.ok?'<span class="ok">✔</span>':'<span class="bad">✘</span>'}</td></tr>`).join('');
   const rest = Object.entries(t.claims).filter(([k]) => !key.includes(k)).map(([k,v]) => `<dt>${esc(k)}</dt><dd>${named(typeof v==='object'?JSON.stringify(v):v)}</dd>`).join('');
-  return `<span class="tokname">${esc(t.name)}</span><table class="claims"><tr><th>claim</th><th>value · meaning</th><th>expected</th><th></th></tr>${rows}</table><details><summary>all claims (${Object.keys(t.claims).length}) + header</summary><dl class="kv">${rest}<dt>header</dt><dd>${esc(JSON.stringify(t.header))}</dd></dl>${t.raw?`<pre>${esc(t.raw)}</pre>`:''}</details>`;
+  let rawBlock = '';
+  if (t.raw) { const i = TOKENS.push(t.raw) - 1; rawBlock = `<details open><summary>raw token — ${t.raw.length} chars <button class="copy" onclick="copyTok(${i});event.preventDefault()">copy</button></summary><pre class="rawtok">${esc(t.raw)}</pre></details>`; }
+  else rawBlock = `<p class="note">Raw token hidden. Tick “show full tokens &amp; codes” in the header to display it.</p>`;
+  return `<span class="tokname">${esc(t.name)}</span><table class="claims"><tr><th>claim</th><th>value · meaning</th><th>expected</th><th></th></tr>${rows}</table>${rawBlock}<details><summary>all claims (${Object.keys(t.claims).length}) + header</summary><dl class="kv">${rest}<dt>header</dt><dd>${esc(JSON.stringify(t.header))}</dd></dl></details>`;
 }
 function renderRun(){
+  TOKENS = [];
   const r = RUN; const tl = $('#timeline');
   const ev = r.evidence.length ? `<div class="btns" style="margin-top:6px">${r.evidence.map(e=>`<span class="tag ${e.result==='pass'?'ok':'bad'}">${e.test} ${e.result}</span>`).join('')}</div>` : '';
   tl.innerHTML = `<h2>${esc(r.title)}<small>run ${r.id} · ${esc(r.startedAt)} · ${r.hops.length} hops · directory at start: assignmentRequired=${r.directoryAtStart?.assignmentRequired} alex=${r.directoryAtStart?.alexAssigned} sam=${r.directoryAtStart?.samAssigned}${r.session?` · session: ${esc(r.session.user?.name)} via ${esc(r.session.clientKey)}`:''}</small>${ev}</h2>` +
@@ -200,11 +212,12 @@ function renderRun(){
       return `<div class="hop ${h.verdict||'info'}"><div class="head"><div class="num">${h.n}</div><div style="flex:1"><div class="route"><b>${esc(h.from)}</b><span class="arrow">→</span><b>${esc(h.to)}</b>${h.spliced?' <span class="tag actor-A1">reported by A1</span>':''}</div><div class="title">${esc(h.title)}</div></div><div class="tags">${h.phase?`<span class="tag ph">${esc(h.phase)}</span>`:''}<span class="tag actor-${esc(h.actor)}">${esc(h.actor)}</span><span class="tag">${esc(h.kind)}</span></div></div>${h.summary?`<p class="summary">${esc(h.summary)}</p>`:''}${h.note?`<p class="note">${esc(h.note)}</p>`:''}${checks}${toks}${req}${res}</div>`;
     }).join('');
 }
-function login(as, client, resource){ const p = new URLSearchParams({as, client, scopeMode: (resource==='control' || $('#single').checked)?'single':'twostep', prompt: $('#forcelogin').checked?'login':'select_account'}); if (resource) p.set('resource', resource); location.href = `/login?${p}`; }
+function login(as, client, resource){ const p = new URLSearchParams({from:'lab', as, client, scopeMode: (resource==='control' || $('#single').checked)?'single':'twostep', prompt: $('#forcelogin').checked?'login':'select_account'}); if (resource) p.set('resource', resource); location.href = `/login?${p}`; }
 async function azcli(scopeForm){ const r = await (await fetch('/api/azcli/import',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({scopeForm})})).json(); sel(r.runId); }
 async function act(path, body){ toast('working…'); const r = await fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}); const j = await r.json(); if (j.error) toast(j.error); if (j.runId) sel(j.runId); else refresh(); }
 async function a1policy(which){ const L = STATE.lab; const map = {app:[L.app.clientId], 'app+direct':[L.app.clientId,L.direct.clientId], 'app+direct+azcli':[L.app.clientId,L.direct.clientId,L.azureCliAppId]}; await fetch('/api/a1/policy',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({allowedAzp:map[which]})}); refresh(); }
-async function clearRuns(){ await fetch('/api/runs/clear',{method:'POST'}); selected=null; history.replaceState(null,'','/'); $('#timeline').innerHTML='<div class="empty">cleared</div>'; refresh(); }
+async function clearRuns(){ await fetch('/api/runs/clear',{method:'POST'}); selected=null; history.replaceState(null,'','/lab'); $('#timeline').innerHTML='<div class="empty">cleared</div>'; refresh(); }
+$('#reveal').checked = revealOn();
 refresh(); setInterval(refresh, 5000);
 </script>
 </body>

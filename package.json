@@ -6,9 +6,13 @@
   "description": "labsOBO | the calling application (APP) on :3100 - OAuth client, hop recorder, and the lab UI.",
   "scripts": {
     "start": "node apps/calling-app/server.mjs",
-    "agent": "node agents/agent1-local/server.mjs"
+    "agent": "node agents/agent1-local/server.mjs",
+    "broker": "node agents/jira-broker/server.mjs"
   },
   "dependencies": {
+    "@aws-sdk/client-secrets-manager": "^3.1139.0",
+    "@aws-sdk/client-ssm": "^3.1139.0",
+    "@aws-sdk/client-sts": "^3.1139.0",
     "jose": "^5.9.6"
   }
 }

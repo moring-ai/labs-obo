@@ -1,0 +1,50 @@
+{
+  "agentRuntimeArtifact": {
+    "containerConfiguration": {
+      "containerUri": "603011031216.dkr.ecr.us-east-1.amazonaws.com/labsobo-agents:20260924-204146"
+    }
+  },
+  "networkConfiguration": {
+    "networkMode": "PUBLIC"
+  },
+  "protocolConfiguration": {
+    "serverProtocol": "HTTP"
+  },
+  "requestHeaderConfiguration": {
+    "requestHeaderAllowlist": [
+      "Authorization"
+    ]
+  },
+  "description": "labsOBO | Jira broker (steps 15-16): accepts only T_A1_BROKER; holds the Atlassian vault.",
+  "roleArn": "arn:aws:iam::603011031216:role/labsOBO-JiraBrokerExecutionRole",
+  "authorizerConfiguration": {
+    "customJWTAuthorizer": {
+      "discoveryUrl": "https://login.microsoftonline.com/a3430156-893d-4661-9dad-dce8308b8c21/v2.0/.well-known/openid-configuration",
+      "allowedAudience": [
+        "06f3efec-575d-421d-9ec9-3e43f95b8e36"
+      ],
+      "allowedScopes": [
+        "labsOBO_jira.create"
+      ],
+      "customClaims": [
+        {
+          "inboundTokenClaimName": "azp",
+          "inboundTokenClaimValueType": "STRING",
+          "authorizingClaimMatchValue": {
+            "claimMatchValue": {
+              "matchValueString": "55521031-a294-41b8-b810-8d44427ebb5a"
+            },
+            "claimMatchOperator": "EQUALS"
+          }
+        }
+      ]
+    }
+  },
+  "environmentVariables": {
+    "LABSOBO_ROLE": "broker",
+    "AWS_REGION": "us-east-1",
+    "JIRA_SITE": "moring-ai",
+    "JIRA_PROJECT": "SEC"
+  },
+  "agentRuntimeId": "labsOBO_jira_broker-1AOesg3Yix"
+}

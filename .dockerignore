@@ -1,0 +1,9 @@
+# Allowlist: only what the two runtimes need enters the build context.
+# Certificates (infra/entra/certs), tokens, sessions and traces never do.
+**
+!package.json
+!package-lock.json
+!lib/**
+!agents/**
+!.lab/labsOBO.env
+!.lab/lab-state.json
